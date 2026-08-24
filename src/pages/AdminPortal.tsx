@@ -12,10 +12,6 @@ const roleOrder: UserRole[] = ['admin', 'founder', 'manager', 'employee']
 export function AdminPortal({ allUsers, currentUser, onUpdateUserRole }: AdminPortalProps) {
   const [query, setQuery] = useState('')
 
-  if (!currentUser || currentUser.role !== 'admin') {
-    return null
-  }
-
   const filteredUsers = useMemo(() => {
     const normalized = query.trim().toLowerCase()
 
@@ -25,6 +21,10 @@ export function AdminPortal({ allUsers, currentUser, onUpdateUserRole }: AdminPo
 
     return allUsers.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(normalized))
   }, [allUsers, query])
+
+  if (!currentUser || currentUser.role !== 'admin') {
+    return null
+  }
 
   return (
     <section className="section" style={{ maxWidth: '1100px', margin: '30px auto', padding: '0 20px' }}>

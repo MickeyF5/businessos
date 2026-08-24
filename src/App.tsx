@@ -41,6 +41,7 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState('')
   const [userNameInput, setUserNameInput] = useState('')
   const [authError, setAuthError] = useState('')
+  const [authNotice, setAuthNotice] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
 
   const [currentView, setCurrentView] = useState<View>('dashboard')
@@ -225,12 +226,19 @@ export default function App() {
         fetchAllUsers()
       }
     } else {
-      setCurrentUser({
+      const { data: userData } = await supabase.auth.getUser()
+      const user = userData.user
+      const profile = {
         id: userId,
-        name: session?.user?.email?.split('@')[0] || 'Employee',
-        email: session?.user?.email || '',
-        role: 'employee',
-      })
+        name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'Employee',
+        email: user?.email || '',
+        role: 'employee' as const,
+      }
+      const { error: profileError } = await supabase.from('profiles').insert([profile])
+      if (profileError) {
+        console.error('Profile setup error:', profileError)
+      }
+      setCurrentUser(profile)
     }
   }
 
@@ -261,6 +269,7 @@ export default function App() {
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault()
     setAuthError('')
+    setAuthNotice('')
     const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
     if (error) setAuthError(error.message)
   }
@@ -268,19 +277,28 @@ export default function App() {
   const handleSignUp = async (event: React.FormEvent) => {
     event.preventDefault()
     setAuthError('')
-    const { data, error } = await supabase.auth.signUp({ email: authEmail, password: authPassword })
+    setAuthNotice('')
+    const { data, error } = await supabase.auth.signUp({
+      email: authEmail,
+      password: authPassword,
+      options: { data: { name: userNameInput || 'Employee' } },
+    })
     if (error) {
       setAuthError(error.message)
       return
     }
 
-    if (data?.user) {
+    if (data?.user && data.session) {
       const { error: profileError } = await supabase.from('profiles').insert([
         { id: data.user.id, name: userNameInput || 'Employee', email: authEmail, role: 'employee' },
       ])
       if (profileError) {
-        setAuthError('Account created, but profile setup failed. Please contact the administrator.')
+        console.error('Profile error:', profileError)
+        setAuthError(`Account created, but profile setup failed: ${profileError.message}`)
       }
+    } else if (data?.user) {
+      setAuthNotice('Account created. Check your email to confirm your account, then log in.')
+      setIsSignUp(false)
     }
   }
 
@@ -325,6 +343,7 @@ export default function App() {
           <h1 style={{ fontSize: '1.2rem', marginBottom: '20px', textAlign: 'center', color: '#fff' }}>BUSINESS OS</h1>
 
           {authError && <p style={{ color: '#ff6b6b', fontSize: '0.85rem', marginBottom: '15px' }}>{authError}</p>}
+          {authNotice && <p style={{ color: '#86efac', fontSize: '0.85rem', marginBottom: '15px' }}>{authNotice}</p>}
 
           <form onSubmit={isSignUp ? handleSignUp : handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {isSignUp && (
