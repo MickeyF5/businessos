@@ -4,7 +4,7 @@ import type { StrategyItem } from '../types'
 
 interface StrategyProps {
   strategies: StrategyItem[]
-  onCreate: (strategy: StrategyItem) => Promise<void>
+  onCreate: (strategy: Omit<StrategyItem, 'id'>) => Promise<void>
   onUpdate: (strategy: StrategyItem) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }
@@ -30,7 +30,6 @@ export function Strategy({ strategies, onCreate, onUpdate, onDelete }: StrategyP
     if (!formState.title.trim() || !formState.description.trim()) return
 
     const strategyPayload = {
-      id: editingId ?? Date.now().toString(),
       title: formState.title.trim(),
       description: formState.description.trim(),
       priority: formState.priority,
@@ -38,7 +37,7 @@ export function Strategy({ strategies, onCreate, onUpdate, onDelete }: StrategyP
     }
 
     if (editingId) {
-      void onUpdate(strategyPayload)
+      void onUpdate({ id: editingId, ...strategyPayload })
     } else {
       void onCreate(strategyPayload)
     }

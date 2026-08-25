@@ -181,12 +181,12 @@ export default function App() {
     setStock((previous) => previous.filter((item) => item.id !== itemId))
   }
 
-  const handleAddCustomer = async (payload: Customer) => {
+  const handleAddCustomer = async (payload: Omit<Customer, 'id'>) => {
     const saved = await upsertCustomer(payload)
     setCustomers((previous) => {
-      const existing = previous.find((item) => item.id === payload.id)
+      const existing = previous.find((item) => item.id === saved.id)
       if (existing) {
-        return previous.map((item) => (item.id === payload.id ? saved : item))
+        return previous.map((item) => (item.id === saved.id ? saved : item))
       }
       return [saved, ...previous]
     })
@@ -202,12 +202,12 @@ export default function App() {
     setCustomers((previous) => previous.filter((customer) => customer.id !== customerId))
   }
 
-  const handleAddPartner = async (payload: Partner) => {
+  const handleAddPartner = async (payload: Omit<Partner, 'id'>) => {
     const saved = await upsertPartner(payload)
     setPartners((previous) => {
-      const existing = previous.find((item) => item.id === payload.id)
+      const existing = previous.find((item) => item.id === saved.id)
       if (existing) {
-        return previous.map((item) => (item.id === payload.id ? saved : item))
+        return previous.map((item) => (item.id === saved.id ? saved : item))
       }
       return [saved, ...previous]
     })
@@ -223,12 +223,12 @@ export default function App() {
     setPartners((previous) => previous.filter((partner) => partner.id !== partnerId))
   }
 
-  const handleAddStrategy = async (payload: StrategyItem) => {
+  const handleAddStrategy = async (payload: Omit<StrategyItem, 'id'>) => {
     const saved = await upsertStrategy(payload)
     setStrategies((previous) => {
-      const existing = previous.find((item) => item.id === payload.id)
+      const existing = previous.find((item) => item.id === saved.id)
       if (existing) {
-        return previous.map((item) => (item.id === payload.id ? saved : item))
+        return previous.map((item) => (item.id === saved.id ? saved : item))
       }
       return [saved, ...previous]
     })

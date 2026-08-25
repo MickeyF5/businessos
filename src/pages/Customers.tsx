@@ -4,7 +4,7 @@ import type { Customer } from '../types'
 
 interface CustomersProps {
   customers: Customer[]
-  onCreate: (customer: Customer) => Promise<void>
+  onCreate: (customer: Omit<Customer, 'id'>) => Promise<void>
   onUpdate: (customer: Customer) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }
@@ -34,7 +34,6 @@ export function Customers({ customers, onCreate, onUpdate, onDelete }: Customers
     }
 
     const customerPayload = {
-      id: editingId ?? Date.now().toString(),
       name: formState.name.trim(),
       company: formState.company.trim(),
       email: formState.email.trim(),
@@ -43,7 +42,7 @@ export function Customers({ customers, onCreate, onUpdate, onDelete }: Customers
     }
 
     if (editingId) {
-      void onUpdate(customerPayload)
+      void onUpdate({ id: editingId, ...customerPayload })
     } else {
       void onCreate(customerPayload)
     }

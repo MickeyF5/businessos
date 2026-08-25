@@ -197,7 +197,7 @@ export async function deleteInventoryItem(id: string): Promise<void> {
 
 export async function upsertCustomer(input: Partial<Customer> & { id?: string }): Promise<Customer> {
   const payload = {
-    id: input.id ?? crypto.randomUUID(),
+    ...(input.id ? { id: input.id } : {}),
     name: input.name,
     company: input.company,
     email: input.email,
@@ -217,7 +217,7 @@ export async function deleteCustomer(id: string): Promise<void> {
 
 export async function upsertPartner(input: Partial<Partner> & { id?: string }): Promise<Partner> {
   const payload = {
-    id: input.id ?? crypto.randomUUID(),
+    ...(input.id ? { id: input.id } : {}),
     name: input.name,
     business: input.business,
     role: input.role,
@@ -236,7 +236,7 @@ export async function deletePartner(id: string): Promise<void> {
 
 export async function upsertStrategy(input: Partial<StrategyItem> & { id?: string }): Promise<StrategyItem> {
   const payload = {
-    id: input.id ?? crypto.randomUUID(),
+    ...(input.id ? { id: input.id } : {}),
     title: input.title,
     description: input.description,
     priority: input.priority ?? 'Medium',

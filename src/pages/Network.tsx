@@ -4,7 +4,7 @@ import type { Partner } from '../types'
 
 interface NetworkProps {
   partners: Partner[]
-  onCreate: (partner: Partner) => Promise<void>
+  onCreate: (partner: Omit<Partner, 'id'>) => Promise<void>
   onUpdate: (partner: Partner) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }
@@ -33,7 +33,6 @@ export function Network({ partners, onCreate, onUpdate, onDelete }: NetworkProps
     }
 
     const partnerPayload = {
-      id: editingId ?? Date.now().toString(),
       name: formState.name.trim(),
       business: formState.business.trim(),
       role: formState.role.trim() || 'Partner',
@@ -41,7 +40,7 @@ export function Network({ partners, onCreate, onUpdate, onDelete }: NetworkProps
     }
 
     if (editingId) {
-      void onUpdate(partnerPayload)
+      void onUpdate({ id: editingId, ...partnerPayload })
     } else {
       void onCreate(partnerPayload)
     }
