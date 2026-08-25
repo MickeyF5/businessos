@@ -6,7 +6,6 @@ export type View =
   | 'project-detail'
   | 'stock'
   | 'customers'
-  | 'accounts'
   | 'network'
   | 'strategy'
   | 'admin'
@@ -27,7 +26,7 @@ export interface Project {
 }
 
 export interface Task {
-  id: number
+  id: string
   title: string
   assignee: string
   assigneeId?: string
@@ -50,15 +49,6 @@ export interface Customer {
   email: string
   phone: string
   status: 'Active' | 'VIP' | 'Inactive'
-  totalSpent: number
-}
-
-export interface Transaction {
-  id: string
-  description: string
-  type: 'income' | 'expense'
-  amount: number
-  date: string
 }
 
 export interface Partner {

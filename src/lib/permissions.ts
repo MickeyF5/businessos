@@ -27,8 +27,6 @@ export interface Permission {
   manageStock: boolean
   viewCustomers: boolean
   manageCustomers: boolean
-  viewAccounts: boolean
-  manageAccounts: boolean
   viewNetwork: boolean
   manageNetwork: boolean
   uploadDocuments: boolean
@@ -55,8 +53,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission> = {
     manageStock: true,
     viewCustomers: true,
     manageCustomers: true,
-    viewAccounts: true,
-    manageAccounts: true,
     viewNetwork: true,
     manageNetwork: true,
     uploadDocuments: true,
@@ -81,8 +77,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission> = {
     manageStock: true,
     viewCustomers: true,
     manageCustomers: true,
-    viewAccounts: true,
-    manageAccounts: true,
     viewNetwork: true,
     manageNetwork: true,
     uploadDocuments: true,
@@ -107,8 +101,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission> = {
     manageStock: true,
     viewCustomers: true,
     manageCustomers: true,
-    viewAccounts: false,
-    manageAccounts: false,
     viewNetwork: true,
     manageNetwork: true,
     uploadDocuments: true,
@@ -133,8 +125,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission> = {
     manageStock: false,
     viewCustomers: false,
     manageCustomers: false,
-    viewAccounts: false,
-    manageAccounts: false,
     viewNetwork: false,
     manageNetwork: false,
     uploadDocuments: true,

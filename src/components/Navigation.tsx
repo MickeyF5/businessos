@@ -46,11 +46,6 @@ export function Navigation({ currentView, role, onNavigate, isOpen, onClose }: N
           👥 Customers
         </button>
       )}
-      {hasPermission(role, 'viewAccounts') && (
-        <button onClick={() => navigate('accounts')} style={navButtonStyle(currentView === 'accounts')}>
-          💰 Accounts
-        </button>
-      )}
       {hasPermission(role, 'viewNetwork') && (
         <button onClick={() => navigate('network')} style={navButtonStyle(currentView === 'network')}>
           🤝 Network

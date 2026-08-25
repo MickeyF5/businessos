@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import type { Dispatch, FormEvent, SetStateAction } from 'react'
+import type { FormEvent } from 'react'
 import type { Partner } from '../types'
 
 interface NetworkProps {
   partners: Partner[]
-  setPartners: Dispatch<SetStateAction<Partner[]>>
+  onCreate: (partner: Partner) => Promise<void>
+  onUpdate: (partner: Partner) => Promise<void>
+  onDelete: (id: string) => Promise<void>
 }
 
 const emptyPartnerForm = {
@@ -14,7 +16,7 @@ const emptyPartnerForm = {
   contact: '',
 }
 
-export function Network({ partners, setPartners }: NetworkProps) {
+export function Network({ partners, onCreate, onUpdate, onDelete }: NetworkProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formState, setFormState] = useState(emptyPartnerForm)
 
@@ -39,9 +41,9 @@ export function Network({ partners, setPartners }: NetworkProps) {
     }
 
     if (editingId) {
-      setPartners((previousPartners) => previousPartners.map((partner) => (partner.id === editingId ? partnerPayload : partner)))
+      void onUpdate(partnerPayload)
     } else {
-      setPartners((previousPartners) => [partnerPayload, ...previousPartners])
+      void onCreate(partnerPayload)
     }
 
     resetForm()
@@ -58,7 +60,7 @@ export function Network({ partners, setPartners }: NetworkProps) {
   }
 
   const handleDelete = (partnerId: string) => {
-    setPartners((previousPartners) => previousPartners.filter((partner) => partner.id !== partnerId))
+    void onDelete(partnerId)
     if (editingId === partnerId) {
       resetForm()
     }

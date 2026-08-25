@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import type { Dispatch, FormEvent, SetStateAction } from 'react'
+import type { FormEvent } from 'react'
 import type { StrategyItem } from '../types'
 
 interface StrategyProps {
   strategies: StrategyItem[]
-  setStrategies: Dispatch<SetStateAction<StrategyItem[]>>
+  onCreate: (strategy: StrategyItem) => Promise<void>
+  onUpdate: (strategy: StrategyItem) => Promise<void>
+  onDelete: (id: string) => Promise<void>
 }
 
 const emptyStrategyForm = {
@@ -14,7 +16,7 @@ const emptyStrategyForm = {
   status: 'Planned' as StrategyItem['status'],
 }
 
-export function Strategy({ strategies, setStrategies }: StrategyProps) {
+export function Strategy({ strategies, onCreate, onUpdate, onDelete }: StrategyProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formState, setFormState] = useState(emptyStrategyForm)
 
@@ -36,9 +38,9 @@ export function Strategy({ strategies, setStrategies }: StrategyProps) {
     }
 
     if (editingId) {
-      setStrategies((previousStrategies) => previousStrategies.map((strategy) => (strategy.id === editingId ? strategyPayload : strategy)))
+      void onUpdate(strategyPayload)
     } else {
-      setStrategies((previousStrategies) => [strategyPayload, ...previousStrategies])
+      void onCreate(strategyPayload)
     }
 
     resetForm()
@@ -55,7 +57,7 @@ export function Strategy({ strategies, setStrategies }: StrategyProps) {
   }
 
   const handleDelete = (strategyId: string) => {
-    setStrategies((previousStrategies) => previousStrategies.filter((strategy) => strategy.id !== strategyId))
+    void onDelete(strategyId)
     if (editingId === strategyId) resetForm()
   }
 

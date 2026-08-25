@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import type { Dispatch, FormEvent, SetStateAction } from 'react'
+import type { FormEvent } from 'react'
 import type { StockItem } from '../types'
 
 interface StockProps {
   stock: StockItem[]
-  setStock: Dispatch<SetStateAction<StockItem[]>>
+  onCreate: (item: StockItem) => Promise<void>
+  onUpdate: (item: StockItem) => Promise<void>
+  onDelete: (id: string) => Promise<void>
 }
 
 const emptyStockForm = {
@@ -14,7 +16,7 @@ const emptyStockForm = {
   price: 0,
 }
 
-export function Stock({ stock, setStock }: StockProps) {
+export function Stock({ stock, onCreate, onUpdate, onDelete }: StockProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formState, setFormState] = useState(emptyStockForm)
 
@@ -39,9 +41,9 @@ export function Stock({ stock, setStock }: StockProps) {
     }
 
     if (editingId) {
-      setStock((previousStock) => previousStock.map((item) => (item.id === editingId ? itemPayload : item)))
+      void onUpdate(itemPayload)
     } else {
-      setStock((previousStock) => [itemPayload, ...previousStock])
+      void onCreate(itemPayload)
     }
 
     resetForm()
@@ -58,7 +60,7 @@ export function Stock({ stock, setStock }: StockProps) {
   }
 
   const handleDelete = (itemId: string) => {
-    setStock((previousStock) => previousStock.filter((item) => item.id !== itemId))
+    void onDelete(itemId)
     if (editingId === itemId) {
       resetForm()
     }

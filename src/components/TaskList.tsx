@@ -12,8 +12,8 @@ interface TaskListProps {
   onTaskAssigneeChange: (value: string) => void
   onTaskAssigneeIdChange: (value: string | undefined) => void
   onAddTask: (event: FormEvent) => void
-  onToggleTask: (id: number) => void
-  onDeleteTask: (id: number, event: MouseEvent) => void
+  onToggleTask: (id: string) => void
+  onDeleteTask: (id: string, event: MouseEvent) => void
 }
 
 export function TaskList({

@@ -6,13 +6,34 @@ import { Projects } from './pages/Projects'
 import { ProjectDetail } from './pages/ProjectDetail'
 import { Stock } from './pages/Stock'
 import { Customers } from './pages/Customers'
-import { Accounts } from './pages/Accounts'
 import { Network } from './pages/Network'
 import { Strategy } from './pages/Strategy'
 import { AdminPortal } from './pages/AdminPortal'
 import { supabase } from './lib/supabase'
+import {
+  addProject,
+  addTask,
+  deleteCustomer,
+  deleteInventoryItem,
+  deletePartner,
+  deleteProjectById,
+  deleteStrategy,
+  deleteTaskById,
+  fetchCustomers,
+  fetchInventory,
+  fetchPartners,
+  fetchProjects,
+  fetchStrategies,
+  fetchTasks,
+  upsertCustomer,
+  upsertInventoryItem,
+  upsertPartner,
+  upsertStrategy,
+  updateProject,
+  updateTask,
+} from './lib/supabaseData'
 import { hasPermission } from './lib/permissions'
-import type { Customer, Partner, Project, StockItem, StrategyItem, Task, Transaction, UserProfile, UserRole, View } from './types'
+import type { Customer, Partner, Project, StockItem, StrategyItem, Task, UserProfile, UserRole, View } from './types'
 import './App.css'
 
 const inputStyle: React.CSSProperties = {
@@ -49,109 +70,178 @@ export default function App() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [allUsers, setAllUsers] = useState<UserProfile[]>([])
 
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: '1',
-      icon: '🚗',
-      name: 'Vehicle Business',
-      description: 'Managing automotive imports, tuning parts, and customer builds.',
-      details: [
-        'Current focus: BMW E92 325i media coverage',
-        'Inventory check due Friday',
-        'Client consultation scheduled',
-      ],
-    },
-    {
-      id: '2',
-      icon: '📱',
-      name: 'Marketing Agency',
-      description: 'Social media branding, TikTok content generation, and client outreach.',
-      details: [
-        'Active campaign: TorqueUniverse growth',
-        'Pending deliverables: 3 video edits',
-        'Ad budget review',
-      ],
-    },
-    {
-      id: '3',
-      icon: '💻',
-      name: 'Internal Software',
-      description: 'Building custom automation scripts, Discord bots, and tools.',
-      details: [
-        'Active stack: React, TypeScript, Node',
-        'Bot monitoring setup',
-        'Portfolio deployment prep',
-      ],
-    },
-  ])
+  const [projects, setProjects] = useState<Project[]>([])
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [projectName, setProjectName] = useState('')
   const [projectIcon, setProjectIcon] = useState('📁')
   const [projectDesc, setProjectDesc] = useState('')
 
-  const [tasks, setTasks] = useState<Task[]>([
-    { id: 1, title: 'Contact 3 potential customers', assignee: 'Makailen', done: false },
-    { id: 2, title: 'Finish website', assignee: 'Viresh', done: false },
-    { id: 3, title: 'Create TikTok content', assignee: 'Zenden', done: false },
-    { id: 4, title: 'Register business', assignee: 'Makailen', done: true, overdue: true },
-  ])
+  const [tasks, setTasks] = useState<Task[]>([])
 
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskAssignee, setNewTaskAssignee] = useState('')
   const [newTaskAssigneeId, setNewTaskAssigneeId] = useState<string | undefined>()
 
-  const [stock, setStock] = useState<StockItem[]>([
-    { id: '1', name: 'E92 Custom Tuning Chip', sku: 'TUN-E92-01', quantity: 12, price: 4500 },
-    { id: '2', name: 'Branding Watermark Asset Kit', sku: 'DIG-BM-04', quantity: 50, price: 850 },
-  ])
+  const [stock, setStock] = useState<StockItem[]>([])
 
-  const [customers, setCustomers] = useState<Customer[]>([
-    { id: '1', name: 'Alex Rivera', company: 'Apex Performance', email: 'alex@apex.com', phone: '+1 (415) 555-0137', status: 'VIP', totalSpent: 18500 },
-    { id: '2', name: 'Jordan Vance', company: 'Vance Logistics', email: 'jordan@vance.io', phone: '+1 (310) 555-0112', status: 'Active', totalSpent: 9200 },
-  ])
+  const [customers, setCustomers] = useState<Customer[]>([])
 
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    { id: '1', description: 'Client Consulting Retainer', type: 'income', amount: 12000, date: '2026-08-20' },
-    { id: '2', description: 'Cloud Infrastructure & API Costs', type: 'expense', amount: 1450, date: '2026-08-22' },
-  ])
+  const [partners, setPartners] = useState<Partner[]>([])
 
-  const [partners, setPartners] = useState<Partner[]>([
-    { id: '1', name: 'Liam Ross', business: 'Ross Audio Labs', role: 'Hardware Collab', contact: 'liam@rosslabs.com' },
-    { id: '2', name: 'Sarah Chen', business: 'Chen Media', role: 'Influencer Growth Partner', contact: 'sarah@chenmedia.com' },
-  ])
+  const [strategies, setStrategies] = useState<StrategyItem[]>([])
 
-  const [strategies, setStrategies] = useState<StrategyItem[]>([
-    { id: '1', title: 'Customer acquisition', description: 'Accelerate acquisition through premium service bundles.', priority: 'High', status: 'In progress' },
-    { id: '2', title: 'Operational efficiency', description: 'Streamline project delivery and internal automation.', priority: 'Medium', status: 'Planned' },
-    { id: '3', title: 'Partner-led growth', description: 'Expand productized offers and partner-led lead generation.', priority: 'Medium', status: 'Planned' },
-  ])
+  const refreshBusinessData = async () => {
+    if (!session?.user) return
 
-  const handleAddTask = (event: React.FormEvent) => {
+    try {
+      const [nextTasks, nextProjects, nextInventory, nextCustomers, nextPartners, nextStrategies] = await Promise.all([
+        fetchTasks(),
+        fetchProjects(),
+        fetchInventory(),
+        fetchCustomers(),
+        fetchPartners(),
+        fetchStrategies(),
+      ])
+
+      setTasks(nextTasks)
+      setProjects(nextProjects)
+      setStock(nextInventory)
+      setCustomers(nextCustomers)
+      setPartners(nextPartners)
+      setStrategies(nextStrategies)
+    } catch (error) {
+      console.error('Failed to refresh business data:', error)
+    }
+  }
+
+  const handleAddTask = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!newTaskTitle.trim()) return
 
-    const nextTask: Task = {
-      id: Date.now(),
-      title: newTaskTitle,
-      assignee: newTaskAssignee || currentUser?.name || 'Unassigned',
-      assigneeId: newTaskAssigneeId,
-      done: false,
+    try {
+      const nextTask = await addTask({
+        title: newTaskTitle,
+        assignee: newTaskAssignee || currentUser?.name || 'Unassigned',
+        assigneeId: newTaskAssigneeId,
+        done: false,
+        overdue: false,
+      })
+
+      setTasks((previousTasks) => [nextTask, ...previousTasks])
+      setNewTaskTitle('')
+      setNewTaskAssignee('')
+      setNewTaskAssigneeId(undefined)
+    } catch (error) {
+      console.error('Failed to add task:', error)
     }
-
-    setTasks((previousTasks) => [nextTask, ...previousTasks])
-    setNewTaskTitle('')
-    setNewTaskAssignee('')
-    setNewTaskAssigneeId(undefined)
   }
 
-  const toggleTask = (id: number) => {
-    setTasks((previousTasks) => previousTasks.map((task) => (task.id === id ? { ...task, done: !task.done } : task)))
+  const toggleTask = async (id: string) => {
+    const task = tasks.find((entry) => entry.id === id)
+    if (!task) return
+
+    try {
+      const updatedTask = await updateTask(id, { done: !task.done })
+      setTasks((previousTasks) => previousTasks.map((entry) => (entry.id === id ? updatedTask : entry)))
+    } catch (error) {
+      console.error('Failed to toggle task:', error)
+    }
   }
 
-  const deleteTask = (id: number, event: React.MouseEvent) => {
+  const deleteTask = async (id: string, event: React.MouseEvent) => {
     event.stopPropagation()
-    setTasks((previousTasks) => previousTasks.filter((task) => task.id !== id))
+
+    try {
+      await deleteTaskById(id)
+      setTasks((previousTasks) => previousTasks.filter((task) => task.id !== id))
+    } catch (error) {
+      console.error('Failed to delete task:', error)
+    }
+  }
+
+  const handleAddStockItem = async (payload: StockItem) => {
+    const saved = await upsertInventoryItem(payload)
+    setStock((previous) => {
+      const existing = previous.find((item) => item.id === payload.id)
+      if (existing) {
+        return previous.map((item) => (item.id === payload.id ? saved : item))
+      }
+      return [saved, ...previous]
+    })
+  }
+
+  const handleUpdateStockItem = async (payload: StockItem) => {
+    const saved = await upsertInventoryItem(payload)
+    setStock((previous) => previous.map((item) => (item.id === payload.id ? saved : item)))
+  }
+
+  const handleDeleteStockItem = async (itemId: string) => {
+    await deleteInventoryItem(itemId)
+    setStock((previous) => previous.filter((item) => item.id !== itemId))
+  }
+
+  const handleAddCustomer = async (payload: Customer) => {
+    const saved = await upsertCustomer(payload)
+    setCustomers((previous) => {
+      const existing = previous.find((item) => item.id === payload.id)
+      if (existing) {
+        return previous.map((item) => (item.id === payload.id ? saved : item))
+      }
+      return [saved, ...previous]
+    })
+  }
+
+  const handleUpdateCustomer = async (payload: Customer) => {
+    const saved = await upsertCustomer(payload)
+    setCustomers((previous) => previous.map((item) => (item.id === payload.id ? saved : item)))
+  }
+
+  const handleDeleteCustomer = async (customerId: string) => {
+    await deleteCustomer(customerId)
+    setCustomers((previous) => previous.filter((customer) => customer.id !== customerId))
+  }
+
+  const handleAddPartner = async (payload: Partner) => {
+    const saved = await upsertPartner(payload)
+    setPartners((previous) => {
+      const existing = previous.find((item) => item.id === payload.id)
+      if (existing) {
+        return previous.map((item) => (item.id === payload.id ? saved : item))
+      }
+      return [saved, ...previous]
+    })
+  }
+
+  const handleUpdatePartner = async (payload: Partner) => {
+    const saved = await upsertPartner(payload)
+    setPartners((previous) => previous.map((item) => (item.id === payload.id ? saved : item)))
+  }
+
+  const handleDeletePartner = async (partnerId: string) => {
+    await deletePartner(partnerId)
+    setPartners((previous) => previous.filter((partner) => partner.id !== partnerId))
+  }
+
+  const handleAddStrategy = async (payload: StrategyItem) => {
+    const saved = await upsertStrategy(payload)
+    setStrategies((previous) => {
+      const existing = previous.find((item) => item.id === payload.id)
+      if (existing) {
+        return previous.map((item) => (item.id === payload.id ? saved : item))
+      }
+      return [saved, ...previous]
+    })
+  }
+
+  const handleUpdateStrategy = async (payload: StrategyItem) => {
+    const saved = await upsertStrategy(payload)
+    setStrategies((previous) => previous.map((item) => (item.id === payload.id ? saved : item)))
+  }
+
+  const handleDeleteStrategy = async (strategyId: string) => {
+    await deleteStrategy(strategyId)
+    setStrategies((previous) => previous.filter((strategy) => strategy.id !== strategyId))
   }
 
   const openProjectDetail = (project: Project) => {
@@ -159,28 +249,31 @@ export default function App() {
     setCurrentView('project-detail')
   }
 
-  const handleSaveProject = (event: React.FormEvent) => {
+  const handleSaveProject = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!projectName.trim()) return
 
-    if (editingId) {
-      setProjects((previousProjects) =>
-        previousProjects.map((project) =>
-          project.id === editingId ? { ...project, name: projectName, icon: projectIcon, description: projectDesc } : project,
-        ),
-      )
-      setEditingId(null)
-    } else {
-      setProjects((previousProjects) => [
-        ...previousProjects,
-        {
-          id: Date.now().toString(),
+    try {
+      if (editingId) {
+        const updatedProject = await updateProject(editingId, {
+          icon: projectIcon,
+          name: projectName,
+          description: projectDesc,
+          details: selectedProject?.details ?? ['Newly created project workspace.'],
+        })
+        setProjects((previousProjects) => previousProjects.map((project) => (project.id === editingId ? updatedProject : project)))
+        setEditingId(null)
+      } else {
+        const createdProject = await addProject({
           icon: projectIcon,
           name: projectName,
           description: projectDesc || 'No description provided.',
           details: ['Newly created project workspace.'],
-        },
-      ])
+        })
+        setProjects((previousProjects) => [createdProject, ...previousProjects])
+      }
+    } catch (error) {
+      console.error('Failed to save project:', error)
     }
 
     setProjectName('')
@@ -196,9 +289,15 @@ export default function App() {
     setCurrentView('projects-manage')
   }
 
-  const deleteProject = (id: string) => {
+  const deleteProject = async (id: string) => {
     if (!currentUser || !hasPermission(currentUser.role, 'deleteProject')) return
-    setProjects((previousProjects) => previousProjects.filter((project) => project.id !== id))
+
+    try {
+      await deleteProjectById(id)
+      setProjects((previousProjects) => previousProjects.filter((project) => project.id !== id))
+    } catch (error) {
+      console.error('Failed to delete project:', error)
+    }
   }
 
   const navigateTo = (view: View) => {
@@ -336,6 +435,39 @@ export default function App() {
     }
   }, [session?.user?.id])
 
+  useEffect(() => {
+    if (!session?.user) return
+
+    void refreshBusinessData()
+
+    const channels = [
+      supabase.channel('public:tasks').on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        void refreshBusinessData()
+      }),
+      supabase.channel('public:projects').on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
+        void refreshBusinessData()
+      }),
+      supabase.channel('public:inventory_items').on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items' }, () => {
+        void refreshBusinessData()
+      }),
+      supabase.channel('public:customers').on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => {
+        void refreshBusinessData()
+      }),
+      supabase.channel('public:partners').on('postgres_changes', { event: '*', schema: 'public', table: 'partners' }, () => {
+        void refreshBusinessData()
+      }),
+      supabase.channel('public:strategies').on('postgres_changes', { event: '*', schema: 'public', table: 'strategies' }, () => {
+        void refreshBusinessData()
+      }),
+    ]
+
+    channels.forEach((channel) => channel.subscribe())
+
+    return () => {
+      channels.forEach((channel) => supabase.removeChannel(channel))
+    }
+  }, [session?.user?.id])
+
   if (!session) {
     return (
       <div className="app" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -398,7 +530,6 @@ export default function App() {
             projects={projects}
             tasks={tasks}
             stock={stock}
-            transactions={transactions}
             allUsers={allUsers}
             currentUserName={currentUser?.name}
             newTaskTitle={newTaskTitle}
@@ -440,15 +571,13 @@ export default function App() {
       case 'project-detail':
         return selectedProject ? <ProjectDetail project={selectedProject} onBack={() => setCurrentView('dashboard')} /> : null
       case 'stock':
-        return hasPermission(role, 'viewStock') ? <Stock stock={stock} setStock={setStock} /> : null
+        return hasPermission(role, 'viewStock') ? <Stock stock={stock} onCreate={handleAddStockItem} onUpdate={handleUpdateStockItem} onDelete={handleDeleteStockItem} /> : null
       case 'customers':
-        return hasPermission(role, 'viewCustomers') ? <Customers customers={customers} setCustomers={setCustomers} /> : null
-      case 'accounts':
-        return hasPermission(role, 'viewAccounts') ? <Accounts transactions={transactions} setTransactions={setTransactions} /> : null
+        return hasPermission(role, 'viewCustomers') ? <Customers customers={customers} onCreate={handleAddCustomer} onUpdate={handleUpdateCustomer} onDelete={handleDeleteCustomer} /> : null
       case 'network':
-        return hasPermission(role, 'viewNetwork') ? <Network partners={partners} setPartners={setPartners} /> : null
+        return hasPermission(role, 'viewNetwork') ? <Network partners={partners} onCreate={handleAddPartner} onUpdate={handleUpdatePartner} onDelete={handleDeletePartner} /> : null
       case 'strategy':
-        return <Strategy strategies={strategies} setStrategies={setStrategies} />
+        return <Strategy strategies={strategies} onCreate={handleAddStrategy} onUpdate={handleUpdateStrategy} onDelete={handleDeleteStrategy} />
       case 'admin':
         return hasPermission(role, 'accessAdminPortal') ? <AdminPortal allUsers={allUsers} currentUser={currentUser} onUpdateUserRole={updateUserRole} /> : null
       default:

@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import type { Dispatch, FormEvent, SetStateAction } from 'react'
+import type { FormEvent } from 'react'
 import type { Customer } from '../types'
 
 interface CustomersProps {
   customers: Customer[]
-  setCustomers: Dispatch<SetStateAction<Customer[]>>
+  onCreate: (customer: Customer) => Promise<void>
+  onUpdate: (customer: Customer) => Promise<void>
+  onDelete: (id: string) => Promise<void>
 }
 
 const emptyCustomerForm = {
@@ -13,10 +15,9 @@ const emptyCustomerForm = {
   email: '',
   phone: '',
   status: 'Active' as Customer['status'],
-  totalSpent: 0,
 }
 
-export function Customers({ customers, setCustomers }: CustomersProps) {
+export function Customers({ customers, onCreate, onUpdate, onDelete }: CustomersProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formState, setFormState] = useState(emptyCustomerForm)
 
@@ -39,13 +40,12 @@ export function Customers({ customers, setCustomers }: CustomersProps) {
       email: formState.email.trim(),
       phone: formState.phone.trim() || 'Not provided',
       status: formState.status,
-      totalSpent: Number(formState.totalSpent) || 0,
     }
 
     if (editingId) {
-      setCustomers((previousCustomers) => previousCustomers.map((customer) => (customer.id === editingId ? customerPayload : customer)))
+      void onUpdate(customerPayload)
     } else {
-      setCustomers((previousCustomers) => [customerPayload, ...previousCustomers])
+      void onCreate(customerPayload)
     }
 
     resetForm()
@@ -59,12 +59,11 @@ export function Customers({ customers, setCustomers }: CustomersProps) {
       email: customer.email,
       phone: customer.phone,
       status: customer.status,
-      totalSpent: customer.totalSpent,
     })
   }
 
   const handleDelete = (customerId: string) => {
-    setCustomers((previousCustomers) => previousCustomers.filter((customer) => customer.id !== customerId))
+    void onDelete(customerId)
     if (editingId === customerId) {
       resetForm()
     }
@@ -113,14 +112,6 @@ export function Customers({ customers, setCustomers }: CustomersProps) {
             <option value="VIP">VIP</option>
             <option value="Inactive">Inactive</option>
           </select>
-          <input
-            type="number"
-            min="0"
-            value={formState.totalSpent}
-            onChange={(event) => setFormState((previous) => ({ ...previous, totalSpent: Number(event.target.value) || 0 }))}
-            placeholder="Total spent"
-            style={{ background: '#1a1a1a', border: '1px solid #333', color: '#fff', borderRadius: '6px', padding: '10px 12px' }}
-          />
 
           <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
             {editingId && (
@@ -142,7 +133,6 @@ export function Customers({ customers, setCustomers }: CustomersProps) {
                 <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Company</th>
                 <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Contact</th>
                 <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Status</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Spent</th>
                 <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Actions</th>
               </tr>
             </thead>
@@ -172,7 +162,6 @@ export function Customers({ customers, setCustomers }: CustomersProps) {
                       {customer.status}
                     </span>
                   </td>
-                  <td style={{ padding: '12px 8px', color: '#22c55e', fontWeight: 700 }}>${customer.totalSpent.toLocaleString()}</td>
                   <td style={{ padding: '12px 8px' }}>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                       <button type="button" onClick={() => handleEdit(customer)} style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>

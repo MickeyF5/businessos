@@ -1,5 +1,5 @@
 import type { FormEvent, MouseEvent } from 'react'
-import type { Project, StockItem, Task, Transaction, UserProfile } from '../types'
+import type { Project, StockItem, Task, UserProfile } from '../types'
 import { StatCard } from '../components/StatCard'
 import { TaskList } from '../components/TaskList'
 
@@ -7,7 +7,6 @@ interface DashboardProps {
   projects: Project[]
   tasks: Task[]
   stock: StockItem[]
-  transactions: Transaction[]
   allUsers: UserProfile[]
   currentUserName?: string
   newTaskTitle: string
@@ -16,8 +15,8 @@ interface DashboardProps {
   onAddTask: (event: FormEvent) => void
   onTaskTitleChange: (value: string) => void
   onTaskAssigneeChange: (value: string) => void
-  onToggleTask: (id: number) => void
-  onDeleteTask: (id: number, event: MouseEvent) => void
+  onToggleTask: (id: string) => void
+  onDeleteTask: (id: string, event: MouseEvent) => void
   onOpenProjectDetail: (project: Project) => void
   onNavigateProjects: () => void
   canManageProjects: boolean
@@ -27,7 +26,6 @@ export function Dashboard({
   projects,
   tasks,
   stock,
-  transactions,
   allUsers,
   currentUserName,
   newTaskTitle,
@@ -42,10 +40,6 @@ export function Dashboard({
   onNavigateProjects,
   canManageProjects,
 }: DashboardProps) {
-  const netBalance = transactions.reduce((acc, transaction) => {
-    return transaction.type === 'income' ? acc + transaction.amount : acc - transaction.amount
-  }, 0)
-
   return (
     <>
       <section className="section" style={{ margin: '20px' }}>
@@ -54,7 +48,6 @@ export function Dashboard({
           <StatCard dot="#22c55e" label="Active Projects" value={projects.length} />
           <StatCard dot="#3b82f6" label="Tasks" value={tasks.filter((task) => !task.done).length} />
           <StatCard dot="#f59e0b" label="Inventory SKUs" value={stock.length} />
-          <StatCard dot="#ef4444" label="Net Balance ($)" value={netBalance} />
         </div>
       </section>
 
