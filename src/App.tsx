@@ -160,12 +160,12 @@ export default function App() {
     }
   }
 
-  const handleAddStockItem = async (payload: StockItem) => {
+  const handleAddStockItem = async (payload: Omit<StockItem, 'id'>) => {
     const saved = await upsertInventoryItem(payload)
     setStock((previous) => {
-      const existing = previous.find((item) => item.id === payload.id)
+      const existing = previous.find((item) => item.id === saved.id)
       if (existing) {
-        return previous.map((item) => (item.id === payload.id ? saved : item))
+        return previous.map((item) => (item.id === saved.id ? saved : item))
       }
       return [saved, ...previous]
     })

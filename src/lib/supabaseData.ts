@@ -65,7 +65,14 @@ export async function fetchProjects(): Promise<Project[]> {
 
 export async function fetchInventory(): Promise<StockItem[]> {
   const { data, error } = await supabase.from('inventory_items').select('*').order('created_at', { ascending: false })
-  if (error) throw error
+  if (error) {
+    console.error('Inventory Error:', error)
+    console.error('Inventory Message:', error?.message)
+    console.error('Inventory Details:', error?.details)
+    console.error('Inventory Hint:', error?.hint)
+    console.error('Inventory Code:', error?.code)
+    throw error
+  }
   return (data ?? []).map(mapInventory)
 }
 
@@ -171,7 +178,7 @@ export async function deleteProjectById(id: string): Promise<void> {
 
 export async function upsertInventoryItem(input: Partial<StockItem> & { id?: string }): Promise<StockItem> {
   const payload = {
-    id: input.id ?? crypto.randomUUID(),
+    ...(input.id ? { id: input.id } : {}),
     name: input.name,
     sku: input.sku,
     quantity: Number(input.quantity ?? 0),

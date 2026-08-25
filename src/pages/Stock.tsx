@@ -4,7 +4,7 @@ import type { StockItem } from '../types'
 
 interface StockProps {
   stock: StockItem[]
-  onCreate: (item: StockItem) => Promise<void>
+  onCreate: (item: Omit<StockItem, 'id'>) => Promise<void>
   onUpdate: (item: StockItem) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }
@@ -33,7 +33,6 @@ export function Stock({ stock, onCreate, onUpdate, onDelete }: StockProps) {
     }
 
     const itemPayload = {
-      id: editingId ?? Date.now().toString(),
       name: formState.name.trim(),
       sku: formState.sku.trim().toUpperCase(),
       quantity: Number(formState.quantity) || 0,
@@ -41,7 +40,7 @@ export function Stock({ stock, onCreate, onUpdate, onDelete }: StockProps) {
     }
 
     if (editingId) {
-      void onUpdate(itemPayload)
+      void onUpdate({ id: editingId, ...itemPayload })
     } else {
       void onCreate(itemPayload)
     }
