@@ -12,7 +12,7 @@ const mapTask = (row: any): Task => ({
 
 const mapProject = (row: any): Project => ({
   id: row.id,
-  icon: row.icon ?? '📁',
+  icon: row.icon ?? 'PRJ',
   name: row.name,
   description: row.description ?? '',
   details: Array.isArray(row.details) ? row.details : [],
@@ -33,6 +33,7 @@ const mapCustomer = (row: any): Customer => ({
   email: row.email,
   phone: row.phone ?? 'Not provided',
   status: row.status ?? 'Active',
+  total_spent: Number(row.total_spent ?? 0),
 })
 
 const mapPartner = (row: any): Partner => ({
@@ -78,7 +79,17 @@ export async function fetchInventory(): Promise<StockItem[]> {
 
 export async function fetchCustomers(): Promise<Customer[]> {
   const { data, error } = await supabase.from('customers').select('*').order('created_at', { ascending: false })
-  if (error) throw error
+  if (error) {
+    console.error('Customer fetch error:', {
+      table: 'customers',
+      action: 'fetch',
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    })
+    throw error
+  }
   return (data ?? []).map(mapCustomer)
 }
 
@@ -185,14 +196,56 @@ export async function upsertInventoryItem(input: Partial<StockItem> & { id?: str
     price: Number(input.price ?? 0),
   }
 
-  const { data, error } = await supabase.from('inventory_items').upsert(payload).select().single()
-  if (error) throw error
-  return mapInventory(data)
+  try {
+    const { data, error } = await supabase.from('inventory_items').upsert(payload).select().single()
+    if (error) {
+      console.error('Inventory upsert error:', {
+        table: 'inventory_items',
+        action: 'upsert',
+        payload,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      })
+      throw error
+    }
+    return mapInventory(data)
+  } catch (error) {
+    console.error('Inventory upsert failed:', {
+      table: 'inventory_items',
+      action: 'upsert',
+      payload,
+      error,
+    })
+    throw error
+  }
 }
 
 export async function deleteInventoryItem(id: string): Promise<void> {
-  const { error } = await supabase.from('inventory_items').delete().eq('id', id)
-  if (error) throw error
+  try {
+    const { error } = await supabase.from('inventory_items').delete().eq('id', id)
+    if (error) {
+      console.error('Inventory delete error:', {
+        table: 'inventory_items',
+        action: 'delete',
+        id,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      })
+      throw error
+    }
+  } catch (error) {
+    console.error('Inventory delete failed:', {
+      table: 'inventory_items',
+      action: 'delete',
+      id,
+      error,
+    })
+    throw error
+  }
 }
 
 export async function upsertCustomer(input: Partial<Customer> & { id?: string }): Promise<Customer> {
@@ -203,16 +256,59 @@ export async function upsertCustomer(input: Partial<Customer> & { id?: string })
     email: input.email,
     phone: input.phone,
     status: input.status ?? 'Active',
+    total_spent: Number(input.total_spent ?? 0),
   }
 
-  const { data, error } = await supabase.from('customers').upsert(payload).select().single()
-  if (error) throw error
-  return mapCustomer(data)
+  try {
+    const { data, error } = await supabase.from('customers').upsert(payload).select().single()
+    if (error) {
+      console.error('Customer upsert error:', {
+        table: 'customers',
+        action: 'upsert',
+        payload,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      })
+      throw error
+    }
+    return mapCustomer(data)
+  } catch (error) {
+    console.error('Customer upsert failed:', {
+      table: 'customers',
+      action: 'upsert',
+      payload,
+      error,
+    })
+    throw error
+  }
 }
 
 export async function deleteCustomer(id: string): Promise<void> {
-  const { error } = await supabase.from('customers').delete().eq('id', id)
-  if (error) throw error
+  try {
+    const { error } = await supabase.from('customers').delete().eq('id', id)
+    if (error) {
+      console.error('Customer delete error:', {
+        table: 'customers',
+        action: 'delete',
+        id,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      })
+      throw error
+    }
+  } catch (error) {
+    console.error('Customer delete failed:', {
+      table: 'customers',
+      action: 'delete',
+      id,
+      error,
+    })
+    throw error
+  }
 }
 
 export async function upsertPartner(input: Partial<Partner> & { id?: string }): Promise<Partner> {

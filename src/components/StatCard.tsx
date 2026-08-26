@@ -2,24 +2,20 @@ interface StatCardProps {
   dot: string
   label: string
   value: number | string
+  trend?: string
 }
 
-export function StatCard({ dot, label, value }: StatCardProps) {
+export function StatCard({ dot, label, value, trend = '+12.4%' }: StatCardProps) {
   return (
-    <div
-      className="stat-card"
-      style={{
-        background: '#141414',
-        padding: '15px',
-        borderRadius: '8px',
-        border: '1px solid #222',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
-        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: dot }} />
-        <small style={{ color: '#888' }}>{label}</small>
+    <div className="stat-card">
+      <div className="stat-card-header">
+        <span className="stat-label">
+          <span className="status-dot" style={{ background: dot, color: dot }} />
+          {label}
+        </span>
+        <span className="trend-badge">{trend}</span>
       </div>
-      <span style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>{value}</span>
+      <div className="stat-value">{value}</div>
     </div>
   )
 }

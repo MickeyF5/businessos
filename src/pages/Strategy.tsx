@@ -88,36 +88,42 @@ export function Strategy({ strategies, onCreate, onUpdate, onDelete }: StrategyP
           </div>
         </form>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e5e7eb' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #2a2a2a', textAlign: 'left' }}>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Initiative</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Priority</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Status</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {strategies.map((strategy) => (
-                <tr key={strategy.id} style={{ borderBottom: '1px solid #1f1f1f' }}>
-                  <td style={{ padding: '12px 8px' }}>
-                    <div style={{ fontWeight: 700 }}>{strategy.title}</div>
-                    <div style={{ color: '#9ca3af', fontSize: '0.85rem', marginTop: '4px' }}>{strategy.description}</div>
-                  </td>
-                  <td style={{ padding: '12px 8px', color: strategy.priority === 'High' ? '#f87171' : strategy.priority === 'Medium' ? '#facc15' : '#9ca3af', fontWeight: 700 }}>{strategy.priority}</td>
-                  <td style={{ padding: '12px 8px', color: strategy.status === 'Complete' ? '#4ade80' : strategy.status === 'In progress' ? '#60a5fa' : '#d1d5db', fontWeight: 700 }}>{strategy.status}</td>
-                  <td style={{ padding: '12px 8px' }}>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      <button type="button" onClick={() => handleEdit(strategy)} style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>Edit</button>
-                      <button type="button" onClick={() => handleDelete(strategy.id)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>Delete</button>
-                    </div>
-                  </td>
+        {strategies.length === 0 ? (
+          <div className="form-card" style={{ marginTop: '16px' }}>
+            <p style={{ color: '#a0a0a0' }}>No strategies found.</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e5e7eb' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #2a2a2a', textAlign: 'left' }}>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Initiative</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Priority</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Status</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {strategies.map((strategy) => (
+                  <tr key={strategy.id} style={{ borderBottom: '1px solid #1f1f1f' }}>
+                    <td style={{ padding: '12px 8px' }}>
+                      <div style={{ fontWeight: 700 }}>{strategy.title}</div>
+                      <div style={{ color: '#9ca3af', fontSize: '0.85rem', marginTop: '4px' }}>{strategy.description}</div>
+                    </td>
+                    <td style={{ padding: '12px 8px', color: strategy.priority === 'High' ? '#f87171' : strategy.priority === 'Medium' ? '#facc15' : '#9ca3af', fontWeight: 700 }}>{strategy.priority}</td>
+                    <td style={{ padding: '12px 8px', color: strategy.status === 'Complete' ? '#4ade80' : strategy.status === 'In progress' ? '#60a5fa' : '#d1d5db', fontWeight: 700 }}>{strategy.status}</td>
+                    <td style={{ padding: '12px 8px' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <button type="button" onClick={() => handleEdit(strategy)} style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>Edit</button>
+                        <button type="button" onClick={() => handleDelete(strategy.id)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </section>
   )

@@ -74,7 +74,7 @@ export default function App() {
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [projectName, setProjectName] = useState('')
-  const [projectIcon, setProjectIcon] = useState('📁')
+  const [projectIcon, setProjectIcon] = useState('PRJ')
   const [projectDesc, setProjectDesc] = useState('')
 
   const [tasks, setTasks] = useState<Task[]>([])
@@ -277,7 +277,7 @@ export default function App() {
     }
 
     setProjectName('')
-    setProjectIcon('📁')
+    setProjectIcon('PRJ')
     setProjectDesc('')
   }
 
@@ -530,6 +530,8 @@ export default function App() {
             projects={projects}
             tasks={tasks}
             stock={stock}
+            customers={customers}
+            strategies={strategies}
             allUsers={allUsers}
             currentUserName={currentUser?.name}
             newTaskTitle={newTaskTitle}
@@ -563,7 +565,7 @@ export default function App() {
             onCancelEdit={() => {
               setEditingId(null)
               setProjectName('')
-              setProjectIcon('📁')
+              setProjectIcon('PRJ')
               setProjectDesc('')
             }}
           />

@@ -72,23 +72,29 @@ export function Projects({
         </div>
       </form>
 
-      <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {projects.map((project) => (
-          <li key={project.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1a1a1a', padding: '10px', borderRadius: '4px' }}>
-            <span>
-              {project.icon} {project.name}
-            </span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => onEditProject(project)} style={{ background: '#262626', color: '#ccc', border: '1px solid #333', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
-                Edit
-              </button>
-              <button onClick={() => onDeleteProject(project.id)} style={{ background: '#262626', color: '#ef4444', border: '1px solid #333', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
-                Delete
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {projects.length === 0 ? (
+        <div className="form-card" style={{ marginTop: '16px' }}>
+          <p style={{ color: '#a0a0a0' }}>No projects found.</p>
+        </div>
+      ) : (
+        <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {projects.map((project) => (
+            <li key={project.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1a1a1a', padding: '10px', borderRadius: '4px' }}>
+              <span>
+                {project.icon} {project.name}
+              </span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => onEditProject(project)} style={{ background: '#262626', color: '#ccc', border: '1px solid #333', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
+                  Edit
+                </button>
+                <button onClick={() => onDeleteProject(project.id)} style={{ background: '#262626', color: '#ef4444', border: '1px solid #333', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
+                  Delete
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   )
 }

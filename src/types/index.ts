@@ -49,6 +49,7 @@ export interface Customer {
   email: string
   phone: string
   status: 'Active' | 'VIP' | 'Inactive'
+  total_spent: number
 }
 
 export interface Partner {

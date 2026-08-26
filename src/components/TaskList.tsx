@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent, MouseEvent } from 'react'
 import type { Task, UserProfile } from '../types'
+import { VzmIcon } from './icons'
 
 interface TaskListProps {
   tasks: Task[]
@@ -57,80 +58,74 @@ export function TaskList({
   }
 
   return (
-    <div style={{ background: '#141414', padding: '20px', borderRadius: '8px', border: '1px solid #222' }}>
-      <h2>TODAY / TO-DO</h2>
+    <div className="panel task-panel">
+      <div className="panel-header">
+        <h2 className="panel-title">Today / To-do</h2>
+      </div>
 
-      <form onSubmit={onAddTask} style={{ display: 'flex', gap: '8px', marginBottom: '15px', alignItems: 'flex-start' }}>
+      <form onSubmit={onAddTask} className="task-form">
         <input
           type="text"
           placeholder="New task..."
           value={newTaskTitle}
           onChange={(event) => onTaskTitleChange(event.target.value)}
-          style={{ flex: 2, background: '#1a1a1a', border: '1px solid #333', color: '#fff', padding: '8px 12px', borderRadius: '4px', outline: 'none' }}
+          className="field"
         />
-        <div style={{ flex: 1, position: 'relative' }}>
+
+        <div style={{ position: 'relative' }}>
           <input
             type="text"
             placeholder="@mention assignee"
             value={newTaskAssignee}
             onFocus={() => setIsMentionOpen(newTaskAssignee.includes('@'))}
             onChange={(event) => handleMentionInput(event.target.value)}
-            style={{ width: '100%', background: '#1a1a1a', border: '1px solid #333', color: '#fff', padding: '8px 12px', borderRadius: '4px', outline: 'none' }}
+            className="field"
           />
+
           {isMentionOpen && mentionOptions.length > 0 && (
-            <ul style={{ position: 'absolute', zIndex: 2, top: 'calc(100% + 4px)', left: 0, right: 0, listStyle: 'none', padding: '4px', margin: 0, background: '#1f1f1f', border: '1px solid #3b3b3b', borderRadius: '6px', boxShadow: '0 8px 18px rgba(0,0,0,0.35)' }}>
+            <ul style={{ position: 'absolute', zIndex: 2, top: 'calc(100% + 6px)', left: 0, right: 0, listStyle: 'none', padding: '5px', margin: 0, background: '#1b1b1b', border: '1px solid #2a2a2a', borderRadius: '12px', boxShadow: '0 18px 40px rgba(0,0,0,0.35)' }}>
               {mentionOptions.map((user) => (
                 <li key={user.id}>
                   <button
                     type="button"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => handleSelectMention(user)}
-                    style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', color: '#fff', padding: '8px', borderRadius: '4px', cursor: 'pointer' }}
+                    style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', color: '#f5f5f5', padding: '9px 8px', borderRadius: '8px', cursor: 'pointer' }}
                   >
                     <strong>@{user.name}</strong>
-                    <span style={{ display: 'block', color: '#888', fontSize: '0.75rem' }}>{user.email}</span>
+                    <span style={{ display: 'block', color: '#a0a0a0', fontSize: '0.75rem', marginTop: '4px' }}>{user.email}</span>
                   </button>
                 </li>
               ))}
             </ul>
           )}
         </div>
-        <button type="submit" style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+
+        <button type="submit" className="primary-button">
+          <VzmIcon name="plus" size={14} />
           Add
         </button>
       </form>
 
-      <ul className="task-list" style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <ul className="task-list">
         {tasks.map((task) => (
-          <li
-            key={task.id}
-            onClick={() => onToggleTask(task.id)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '8px 12px',
-              background: '#1a1a1a',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              borderLeft: task.done ? '4px solid #22c55e' : '4px solid #3b82f6',
-              opacity: task.done ? 0.6 : 1,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontWeight: 'bold' }}>{task.done ? '[x]' : '[ ]'}</span>
-              <span style={{ textDecoration: task.done ? 'line-through' : 'none' }}>{task.title}</span>
+          <li key={task.id} onClick={() => onToggleTask(task.id)} className={`task-item ${task.done ? 'done' : ''}`}>
+            <div className="task-main">
+              <span className="task-state">
+                {task.done ? <VzmIcon name="check" size={12} /> : ''}
+              </span>
+              <span className="task-text">{task.title}</span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <small style={{ color: '#888', background: '#222', padding: '2px 6px', borderRadius: '4px' }}>
-                @{getAssigneeName(task)}
-              </small>
+            <div className="task-meta">
+              <span className="task-assignee">@{getAssigneeName(task)}</span>
               <button
+                type="button"
+                className="task-action"
                 onClick={(event) => onDeleteTask(task.id, event)}
-                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.9rem' }}
+                aria-label={`Delete ${task.title}`}
               >
-                ✕
+                <VzmIcon name="delete" size={14} />
               </button>
             </div>
           </li>

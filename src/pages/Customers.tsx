@@ -15,6 +15,7 @@ const emptyCustomerForm = {
   email: '',
   phone: '',
   status: 'Active' as Customer['status'],
+  total_spent: 0,
 }
 
 export function Customers({ customers, onCreate, onUpdate, onDelete }: CustomersProps) {
@@ -39,6 +40,7 @@ export function Customers({ customers, onCreate, onUpdate, onDelete }: Customers
       email: formState.email.trim(),
       phone: formState.phone.trim() || 'Not provided',
       status: formState.status,
+      total_spent: Number(formState.total_spent ?? 0),
     }
 
     if (editingId) {
@@ -58,6 +60,7 @@ export function Customers({ customers, onCreate, onUpdate, onDelete }: Customers
       email: customer.email,
       phone: customer.phone,
       status: customer.status,
+      total_spent: Number(customer.total_spent ?? 0),
     })
   }
 
@@ -124,58 +127,64 @@ export function Customers({ customers, onCreate, onUpdate, onDelete }: Customers
           </div>
         </form>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e5e7eb' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #2a2a2a', textAlign: 'left' }}>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Name</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Company</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Contact</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Status</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {customers.map((customer) => (
-                <tr key={customer.id} style={{ borderBottom: '1px solid #1f1f1f' }}>
-                  <td style={{ padding: '12px 8px' }}>
-                    <div style={{ fontWeight: 700 }}>{customer.name}</div>
-                  </td>
-                  <td style={{ padding: '12px 8px', color: '#d1d5db' }}>{customer.company}</td>
-                  <td style={{ padding: '12px 8px', color: '#d1d5db' }}>
-                    <div>{customer.email}</div>
-                    <div style={{ color: '#9ca3af', fontSize: '0.85rem' }}>{customer.phone}</div>
-                  </td>
-                  <td style={{ padding: '12px 8px' }}>
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        background: customer.status === 'VIP' ? '#4f46e5' : customer.status === 'Inactive' ? '#374151' : '#14532d',
-                        color: '#fff',
-                        borderRadius: '999px',
-                        padding: '4px 8px',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {customer.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 8px' }}>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      <button type="button" onClick={() => handleEdit(customer)} style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>
-                        Edit
-                      </button>
-                      <button type="button" onClick={() => handleDelete(customer.id)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>
-                        Delete
-                      </button>
-                    </div>
-                  </td>
+        {customers.length === 0 ? (
+          <div className="form-card" style={{ marginTop: '16px' }}>
+            <p style={{ color: '#a0a0a0' }}>No customers found.</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e5e7eb' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #2a2a2a', textAlign: 'left' }}>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Name</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Company</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Contact</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Status</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {customers.map((customer) => (
+                  <tr key={customer.id} style={{ borderBottom: '1px solid #1f1f1f' }}>
+                    <td style={{ padding: '12px 8px' }}>
+                      <div style={{ fontWeight: 700 }}>{customer.name}</div>
+                    </td>
+                    <td style={{ padding: '12px 8px', color: '#d1d5db' }}>{customer.company}</td>
+                    <td style={{ padding: '12px 8px', color: '#d1d5db' }}>
+                      <div>{customer.email}</div>
+                      <div style={{ color: '#9ca3af', fontSize: '0.85rem' }}>{customer.phone}</div>
+                    </td>
+                    <td style={{ padding: '12px 8px' }}>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          background: customer.status === 'VIP' ? '#4f46e5' : customer.status === 'Inactive' ? '#374151' : '#14532d',
+                          color: '#fff',
+                          borderRadius: '999px',
+                          padding: '4px 8px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {customer.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 8px' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <button type="button" onClick={() => handleEdit(customer)} style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>
+                          Edit
+                        </button>
+                        <button type="button" onClick={() => handleDelete(customer.id)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </section>
   )

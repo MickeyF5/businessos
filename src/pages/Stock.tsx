@@ -87,35 +87,41 @@ export function Stock({ stock, onCreate, onUpdate, onDelete }: StockProps) {
           </div>
         </form>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e5e7eb' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #2a2a2a', textAlign: 'left' }}>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Item</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>SKU</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Qty</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Price</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stock.map((item) => (
-                <tr key={item.id} style={{ borderBottom: '1px solid #1f1f1f' }}>
-                  <td style={{ padding: '12px 8px', fontWeight: 700 }}>{item.name}</td>
-                  <td style={{ padding: '12px 8px', color: '#d1d5db' }}>{item.sku}</td>
-                  <td style={{ padding: '12px 8px', color: item.quantity < 10 ? '#fbbf24' : '#e5e7eb' }}>{item.quantity} units</td>
-                  <td style={{ padding: '12px 8px', color: '#60a5fa', fontWeight: 700 }}>${item.price.toLocaleString()}</td>
-                  <td style={{ padding: '12px 8px' }}>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      <button type="button" onClick={() => handleEdit(item)} style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>Edit</button>
-                      <button type="button" onClick={() => handleDelete(item.id)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>Delete</button>
-                    </div>
-                  </td>
+        {stock.length === 0 ? (
+          <div className="form-card" style={{ marginTop: '16px' }}>
+            <p style={{ color: '#a0a0a0' }}>No inventory items found.</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e5e7eb' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #2a2a2a', textAlign: 'left' }}>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Item</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>SKU</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Qty</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Price</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {stock.map((item) => (
+                  <tr key={item.id} style={{ borderBottom: '1px solid #1f1f1f' }}>
+                    <td style={{ padding: '12px 8px', fontWeight: 700 }}>{item.name}</td>
+                    <td style={{ padding: '12px 8px', color: '#d1d5db' }}>{item.sku}</td>
+                    <td style={{ padding: '12px 8px', color: item.quantity < 10 ? '#fbbf24' : '#e5e7eb' }}>{item.quantity} units</td>
+                    <td style={{ padding: '12px 8px', color: '#60a5fa', fontWeight: 700 }}>${item.price.toLocaleString()}</td>
+                    <td style={{ padding: '12px 8px' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <button type="button" onClick={() => handleEdit(item)} style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>Edit</button>
+                        <button type="button" onClick={() => handleDelete(item.id)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </section>
   )

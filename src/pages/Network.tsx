@@ -87,35 +87,41 @@ export function Network({ partners, onCreate, onUpdate, onDelete }: NetworkProps
           </div>
         </form>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e5e7eb' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #2a2a2a', textAlign: 'left' }}>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Name</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Business</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Role</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Contact</th>
-                <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {partners.map((partner) => (
-                <tr key={partner.id} style={{ borderBottom: '1px solid #1f1f1f' }}>
-                  <td style={{ padding: '12px 8px', fontWeight: 700 }}>{partner.name}</td>
-                  <td style={{ padding: '12px 8px', color: '#d1d5db' }}>{partner.business}</td>
-                  <td style={{ padding: '12px 8px', color: '#60a5fa', fontWeight: 700 }}>{partner.role}</td>
-                  <td style={{ padding: '12px 8px', color: '#d1d5db' }}>{partner.contact}</td>
-                  <td style={{ padding: '12px 8px' }}>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      <button type="button" onClick={() => handleEdit(partner)} style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>Edit</button>
-                      <button type="button" onClick={() => handleDelete(partner.id)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>Delete</button>
-                    </div>
-                  </td>
+        {partners.length === 0 ? (
+          <div className="form-card" style={{ marginTop: '16px' }}>
+            <p style={{ color: '#a0a0a0' }}>No partners found.</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', color: '#e5e7eb' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #2a2a2a', textAlign: 'left' }}>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Name</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Business</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Role</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Contact</th>
+                  <th style={{ padding: '12px 8px', color: '#9ca3af' }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {partners.map((partner) => (
+                  <tr key={partner.id} style={{ borderBottom: '1px solid #1f1f1f' }}>
+                    <td style={{ padding: '12px 8px', fontWeight: 700 }}>{partner.name}</td>
+                    <td style={{ padding: '12px 8px', color: '#d1d5db' }}>{partner.business}</td>
+                    <td style={{ padding: '12px 8px', color: '#60a5fa', fontWeight: 700 }}>{partner.role}</td>
+                    <td style={{ padding: '12px 8px', color: '#d1d5db' }}>{partner.contact}</td>
+                    <td style={{ padding: '12px 8px' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <button type="button" onClick={() => handleEdit(partner)} style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>Edit</button>
+                        <button type="button" onClick={() => handleDelete(partner.id)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </section>
   )

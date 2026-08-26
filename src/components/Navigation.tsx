@@ -1,6 +1,6 @@
-import type { CSSProperties } from 'react'
 import type { UserRole, View } from '../types'
 import { hasPermission } from '../lib/permissions'
+import { VzmIcon } from './icons'
 
 interface NavigationProps {
   currentView: View
@@ -10,14 +10,6 @@ interface NavigationProps {
   onClose: () => void
 }
 
-const navButtonStyle = (isActive: boolean): CSSProperties => ({
-  background: 'none',
-  border: 'none',
-  color: isActive ? '#3b82f6' : '#888',
-  cursor: 'pointer',
-  fontWeight: isActive ? 'bold' : 'normal',
-})
-
 export function Navigation({ currentView, role, onNavigate, isOpen, onClose }: NavigationProps) {
   if (!isOpen) return null
 
@@ -26,39 +18,47 @@ export function Navigation({ currentView, role, onNavigate, isOpen, onClose }: N
     onClose()
   }
 
+  const navItems = [
+    { view: 'dashboard' as const, label: 'Dashboard', icon: 'dashboard' },
+    { view: 'projects-manage' as const, label: 'Projects', icon: 'projects' },
+    { view: 'stock' as const, label: 'Inventory', icon: 'stock' },
+    { view: 'customers' as const, label: 'Customers', icon: 'customers' },
+    { view: 'network' as const, label: 'Network', icon: 'network' },
+    { view: 'strategy' as const, label: 'Strategy', icon: 'strategy' },
+    { view: 'admin' as const, label: 'Admin Portal', icon: 'admin' },
+  ]
+
   return (
-    <nav style={{ background: '#141414', padding: '12px 20px', display: 'flex', gap: '20px', borderBottom: '1px solid #222', flexWrap: 'wrap' }}>
-      <button onClick={() => navigate('dashboard')} style={navButtonStyle(currentView === 'dashboard')}>
-        🏠 Dashboard
-      </button>
-      {hasPermission(role, 'viewProjects') && (
-        <button onClick={() => navigate('projects-manage')} style={navButtonStyle(currentView === 'projects-manage')}>
-          📁 Projects
-        </button>
-      )}
-      {hasPermission(role, 'viewStock') && (
-        <button onClick={() => navigate('stock')} style={navButtonStyle(currentView === 'stock')}>
-          📦 Stock
-        </button>
-      )}
-      {hasPermission(role, 'viewCustomers') && (
-        <button onClick={() => navigate('customers')} style={navButtonStyle(currentView === 'customers')}>
-          👥 Customers
-        </button>
-      )}
-      {hasPermission(role, 'viewNetwork') && (
-        <button onClick={() => navigate('network')} style={navButtonStyle(currentView === 'network')}>
-          🤝 Network
-        </button>
-      )}
-      <button onClick={() => navigate('strategy')} style={navButtonStyle(currentView === 'strategy')}>
-        🧠 Strategy
-      </button>
-      {hasPermission(role, 'accessAdminPortal') && (
-        <button onClick={() => navigate('admin')} style={{ background: 'none', border: 'none', color: currentView === 'admin' ? '#f59e0b' : '#d97706', cursor: 'pointer', fontWeight: 'bold' }}>
-          ⚙️ Admin Portal
-        </button>
-      )}
+    <nav className="nav-shell">
+      {navItems.map(({ view, label, icon }) => {
+        const permitted =
+          view === 'dashboard' ||
+          view === 'strategy' ||
+          view === 'projects-manage'
+            ? hasPermission(role, 'viewProjects') || view === 'dashboard' || view === 'strategy'
+            : view === 'stock'
+              ? hasPermission(role, 'viewStock')
+              : view === 'customers'
+                ? hasPermission(role, 'viewCustomers')
+                : view === 'network'
+                  ? hasPermission(role, 'viewNetwork')
+                  : hasPermission(role, 'accessAdminPortal')
+
+        if (!permitted) return null
+
+        const isActive = currentView === view
+        return (
+          <button
+            key={view}
+            type="button"
+            className={`nav-button ${isActive ? 'active' : ''}`}
+            onClick={() => navigate(view)}
+          >
+            <VzmIcon name={icon as any} size={16} />
+            <span>{label}</span>
+          </button>
+        )
+      })}
     </nav>
   )
 }

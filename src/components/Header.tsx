@@ -1,6 +1,7 @@
 import type { UserProfile, View } from '../types'
 import { ROLE_COLORS, getRoleLabel } from '../lib/permissions'
 import logo from '../assets/logo.jpeg'
+import { VzmIcon } from './icons'
 
 interface HeaderProps {
   currentUser: UserProfile | null
@@ -14,76 +15,40 @@ export function Header({ currentUser, isMenuOpen, onToggleMenu, onNavigate, onLo
   const role = currentUser?.role || 'employee'
 
   return (
-    <header
-      className="header"
-      style={{
-        position: 'relative',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '15px 20px',
-        background: '#141414',
-        borderBottom: '1px solid #222',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+    <header className="topbar">
+      <div className="topbar-left">
         <button
+          className="icon-button"
           onClick={onToggleMenu}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#fff',
-            fontSize: '1.2rem',
-            cursor: 'pointer',
-          }}
           title="Toggle Navigation"
           aria-label="Toggle navigation"
+          type="button"
         >
-          {isMenuOpen ? '✕' : '☰'}
+          <VzmIcon name={isMenuOpen ? 'close' : 'menu'} size={18} />
         </button>
       </div>
 
       <button
-        className="header-logo-button"
+        className="brand-mark"
         type="button"
         onClick={() => onNavigate('dashboard')}
         aria-label="Go to dashboard"
-        style={{
-          position: 'absolute',
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'transparent',
-          border: 'none',
-          padding: 0,
-          cursor: 'pointer',
-        }}
       >
-        <img className="header-logo" src={logo} alt="Business OS" />
+        <img className="header-logo" src={logo} alt="VZM" />
       </button>
 
-      <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-        <span className="user">
-          👤 {currentUser?.name}
-          <small style={{ color: ROLE_COLORS[role], marginLeft: '5px', fontWeight: 'bold' }}>
-            ({getRoleLabel(role)})
-          </small>
-        </span>
-        <button
-          onClick={onLogout}
-          style={{
-            background: '#262626',
-            color: '#ccc',
-            border: '1px solid #333',
-            padding: '6px 12px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }}
-        >
-          Logout
+      <div className="topbar-right">
+        <div className="user-pill">
+          <VzmIcon name="user" size={18} />
+          <div className="user-pill-copy">
+            <span>{currentUser?.name || 'Guest'}</span>
+            <small style={{ color: ROLE_COLORS[role] }}>{getRoleLabel(role)}</small>
+          </div>
+        </div>
+
+        <button className="ghost-button" type="button" onClick={onLogout}>
+          <VzmIcon name="logout" size={16} />
+          <span>Logout</span>
         </button>
       </div>
     </header>
