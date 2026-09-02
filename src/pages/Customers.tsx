@@ -230,34 +230,44 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
   const activeJobs = customerJobs.filter((job) => safeNumber(job.profit) >= 0).length
   const completedJobs = customerJobs.filter((job) => safeNumber(job.profit) > 0).length
   const lastActivity = customerJobs[0]?.created_at ?? selectedCustomer?.created_at ?? null
-  const customerHealth = customerInvoices.some((invoice) => invoice.status === 'Overdue') || outstandingBalance > 0 ? 'Attention Needed' : customerJobs.length === 0 ? 'Inactive' : 'Healthy'
+  const customerHealth = customerJobs.length === 0 && customerInvoices.length === 0 && customerQuotes.length === 0 ? 'Inactive' : outstandingBalance > 0 || customerInvoices.some((invoice) => invoice.status === 'Overdue') ? 'Attention Required' : 'Healthy'
   const activeCustomerQuotes = customerQuotes.filter((quote) => quote.status !== 'Converted' && quote.status !== 'Rejected')
-  const recentActivity = [
-    ...customerJobs.slice(0, 4).map((job) => ({
+  const timelineEntries = [
+    ...(selectedCustomer
+      ? [{
+          id: `customer-${selectedCustomer.id}`,
+          type: 'customer' as const,
+          label: 'Customer Created',
+          detail: `${selectedCustomer.company || selectedCustomer.name} • ${selectedCustomer.email}`,
+          date: selectedCustomer.created_at ?? null,
+          recordId: selectedCustomer.id,
+        }]
+      : []),
+    ...customerJobs.map((job) => ({
       id: `job-${job.id}`,
       type: 'job' as const,
-      label: 'Job Created',
+      label: safeNumber(job.profit) > 0 ? 'Job Completed' : 'Job Created',
       detail: `${job.title} • ${formatCurrency(safeNumber(job.revenue))}`,
       date: job.created_at ?? null,
       recordId: job.id,
     })),
-    ...activeCustomerQuotes.slice(0, 4).map((quote) => ({
+    ...activeCustomerQuotes.map((quote) => ({
       id: `quote-${quote.id}`,
       type: 'quote' as const,
-      label: 'Quote Issued',
+      label: quote.status === 'Accepted' ? 'Quote Accepted' : 'Quote Created',
       detail: `${quote.number ?? 'Quote'} • ${formatCurrency(quote.total)}`,
-      date: quote.created_at ?? null,
+      date: quote.updated_at ?? quote.created_at ?? null,
       recordId: quote.id,
     })),
-    ...customerInvoices.slice(0, 4).map((invoice) => ({
+    ...customerInvoices.map((invoice) => ({
       id: `invoice-${invoice.id}`,
       type: 'invoice' as const,
-      label: invoice.status === 'Paid' ? 'Invoice Paid' : 'Invoice Issued',
+      label: invoice.status === 'Paid' ? 'Payment Received' : 'Invoice Created',
       detail: `${invoice.number ?? 'Invoice'} • ${formatCurrency(invoice.total)}`,
-      date: invoice.issued_at ?? invoice.created_at ?? null,
+      date: invoice.updated_at ?? invoice.issued_at ?? invoice.created_at ?? null,
       recordId: invoice.id,
     })),
-  ].sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime()).slice(0, 6)
+  ].sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime()).slice(0, 8)
 
   const quickActions = [
     { label: 'Create Job', action: 'job' },
@@ -298,6 +308,39 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
       setWorkspaceTab('payments')
       setCustomerActionStatus('Payment timeline opened.')
     }
+  }
+
+  const handleRecordPayment = async (invoice: Invoice) => {
+    if (!selectedCustomer) return
+
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .update({ status: 'Paid', updated_at: new Date().toISOString() })
+        .eq('id', invoice.id)
+
+      if (error) throw error
+
+      setLocalInvoices((previous) => previous.map((entry) => (entry.id === invoice.id ? { ...entry, status: 'Paid', updated_at: new Date().toISOString() } : entry)))
+      setWorkspaceTab('payments')
+      setCustomerActionStatus(`Payment recorded for ${invoice.number ?? 'invoice'} and linked to receipt.`)
+    } catch (error) {
+      console.error('Failed to record payment:', error)
+      setCustomerActionStatus('Unable to record payment right now.')
+    }
+  }
+
+  const handleRelationshipNavigation = (relationship: 'job' | 'quote' | 'invoice' | 'payment' | 'receipt') => {
+    const destinationMap = {
+      job: 'jobs',
+      quote: 'quotes',
+      invoice: 'invoices',
+      payment: 'payments',
+      receipt: 'payments',
+    } as const
+
+    setWorkspaceTab(destinationMap[relationship])
+    setCustomerActionStatus(`Navigated to ${relationship === 'receipt' ? 'receipt' : relationship} record.`)
   }
 
   const handleConvertQuoteToInvoice = async (quote: Quote) => {
@@ -488,7 +531,7 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
 
   const interactionTone = (status: string) => {
     if (status === 'Healthy') return { bg: 'rgba(34,197,94,0.12)', color: '#7ce3a2' }
-    if (status === 'Attention Needed') return { bg: 'rgba(250,204,21,0.12)', color: '#fbbf24' }
+    if (status === 'Attention Required') return { bg: 'rgba(250,204,21,0.12)', color: '#fbbf24' }
     return { bg: 'rgba(148,163,184,0.12)', color: '#cbd5e1' }
   }
 
@@ -518,12 +561,27 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '10px 12px' }}><div style={{ color: '#9ca3af', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Active jobs</div><div style={{ marginTop: '8px', fontWeight: 700 }}>{activeJobs}</div></div>
                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '10px 12px' }}><div style={{ color: '#9ca3af', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Open invoices</div><div style={{ marginTop: '8px', fontWeight: 700 }}>{customerInvoices.filter((invoice) => invoice.status !== 'Paid' && invoice.status !== 'Cancelled').length}</div></div>
                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '10px 12px' }}><div style={{ color: '#9ca3af', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Latest payment</div><div style={{ marginTop: '8px', fontWeight: 700 }}>{customerPayments[0] ? `${customerPayments[0].invoiceNumber} • ${customerPayments[0].amount}` : 'No payments yet'}</div></div>
-                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '10px 12px' }}><div style={{ color: '#9ca3af', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Recent activity</div><div style={{ marginTop: '8px', fontWeight: 700 }}>{recentActivity[0] ? recentActivity[0].label : 'No activity'}</div></div>
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '10px 12px' }}><div style={{ color: '#9ca3af', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Recent activity</div><div style={{ marginTop: '8px', fontWeight: 700 }}>{timelineEntries[0] ? timelineEntries[0].label : 'No activity'}</div></div>
               </div>
             </aside>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '16px 24px 0', borderBottom: '1px solid rgba(212,175,55,0.12)', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 5,
+              display: 'flex',
+              gap: '8px',
+              overflowX: 'auto',
+              padding: '14px 24px 12px',
+              borderBottom: '1px solid rgba(212,175,55,0.12)',
+              flexWrap: 'wrap',
+              background: 'rgba(17,17,17,0.96)',
+              backdropFilter: 'blur(12px)',
+            }}
+          >
+            <div style={{ width: '100%', color: '#d4af37', fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px' }}>Top command bar</div>
             {quickActions.map((entry) => (
               <button key={entry.action} type="button" onClick={() => void handleQuickAction(entry.action)} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.28)', color: '#f3d67a', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', fontWeight: 700 }}>
                 + {entry.label}
@@ -613,11 +671,11 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
                           <h3 style={{ margin: 0 }}>Recent Activity</h3>
                           <span style={{ color: '#9ca3af', fontSize: '0.76rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Live</span>
                         </div>
-                        {recentActivity.length === 0 ? (
+                        {timelineEntries.length === 0 ? (
                           <div style={{ border: '1px dashed rgba(212,175,55,0.24)', borderRadius: '12px', padding: '30px 20px', textAlign: 'center', color: '#a1a1a1' }}>No customer activity yet.</div>
                         ) : (
                           <div style={{ display: 'grid', gap: '12px' }}>
-                            {recentActivity.map((entry) => (
+                            {timelineEntries.map((entry) => (
                               <button key={entry.id} type="button" onClick={() => { setWorkspaceTab(entry.type === 'job' ? 'jobs' : entry.type === 'quote' ? 'quotes' : entry.type === 'invoice' ? 'invoices' : 'activity'); setCustomerActionStatus(`${entry.label} opened.`) }} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '10px', background: 'transparent', borderLeft: 0, borderRight: 0, borderTop: 0, color: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
                                 <div>
                                   <div style={{ fontWeight: 700 }}>{entry.label}</div>
@@ -715,9 +773,9 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
                             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                               <button type="button" onClick={() => setCustomerActionStatus(`Viewing ${quote.number ?? 'quote'} details.`)} style={actionButtonStyle}>View</button>
                               <button type="button" onClick={() => setCustomerActionStatus(`Editing ${quote.number ?? 'quote'}.`)} style={actionButtonStyle}>Edit</button>
-                              <button type="button" onClick={() => setCustomerActionStatus(`Duplicating ${quote.number ?? 'quote'}.`)} style={actionButtonStyle}>Duplicate</button>
+                              <button type="button" onClick={() => setCustomerActionStatus(`Exporting ${quote.number ?? 'quote'} to PDF.`)} style={actionButtonStyle}>Export PDF</button>
                               <button type="button" onClick={() => window.print()} style={actionButtonStyle}>Print</button>
-                              <button type="button" onClick={() => setCustomerActionStatus(`Sending ${quote.number ?? 'quote'} to customer.`)} style={actionButtonStyle}>Send</button>
+                              <button type="button" onClick={() => handleRelationshipNavigation('job')} style={actionButtonStyle}>Job</button>
                               <button type="button" onClick={() => void handleConvertQuoteToInvoice(quote)} style={actionButtonPrimaryStyle}>Convert To Invoice</button>
                             </div>
                           </div>
@@ -749,10 +807,11 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
                             <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
                               <button type="button" onClick={() => setCustomerActionStatus(`Viewing ${invoice.number ?? 'invoice'}.`)} style={actionButtonStyle}>View</button>
                               <button type="button" onClick={() => setCustomerActionStatus(`Editing ${invoice.number ?? 'invoice'}.`)} style={actionButtonStyle}>Edit</button>
+                              <button type="button" onClick={() => setCustomerActionStatus(`Exporting ${invoice.number ?? 'invoice'} to PDF.`)} style={actionButtonStyle}>Export PDF</button>
                               <button type="button" onClick={() => window.print()} style={actionButtonStyle}>Print</button>
-                              <button type="button" onClick={() => setCustomerActionStatus(`Recording payment for ${invoice.number ?? 'invoice'}.`)} style={actionButtonStyle}>Record Payment</button>
-                              <button type="button" onClick={() => { setCustomerActionStatus(`${invoice.number ?? 'invoice'} marked paid.`); setLocalInvoices((previous) => previous.map((entry) => entry.id === invoice.id ? { ...entry, status: 'Paid' } : entry)) }} style={actionButtonPrimaryStyle}>Mark Paid</button>
-                              <button type="button" onClick={() => setCustomerActionStatus(`Payment history for ${invoice.number ?? 'invoice'} opened.`)} style={actionButtonStyle}>View Payment History</button>
+                              <button type="button" onClick={() => void handleRecordPayment(invoice)} style={actionButtonStyle}>Record Payment</button>
+                              <button type="button" onClick={() => handleRelationshipNavigation('receipt')} style={actionButtonPrimaryStyle}>Receipt</button>
+                              <button type="button" onClick={() => handleRelationshipNavigation('payment')} style={actionButtonStyle}>Payment</button>
                             </div>
                           </div>
                         )
@@ -781,6 +840,7 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
                               <button type="button" onClick={() => setCustomerActionStatus(`Downloading receipt for ${payment.invoiceNumber}.`)} style={actionButtonStyle}>Download PDF</button>
                               <button type="button" onClick={() => window.print()} style={actionButtonStyle}>Print</button>
                               <button type="button" onClick={() => setCustomerActionStatus(`Viewing invoice ${payment.invoiceNumber}.`)} style={actionButtonStyle}>View Invoice</button>
+                              <button type="button" onClick={() => handleRelationshipNavigation('invoice')} style={actionButtonStyle}>Invoice</button>
                             </div>
                           </div>
                         </div>
@@ -847,18 +907,18 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
 
                 {workspaceTab === 'activity' && (
                   <div>
-                    {recentActivity.length === 0 ? (
+                    {timelineEntries.length === 0 ? (
                       <div style={{ border: '1px dashed rgba(212,175,55,0.3)', borderRadius: '14px', padding: '42px 20px', textAlign: 'center', color: '#b8b8b8' }}>
                         <div style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px' }}>Customer Activity Timeline Empty</div>
                         <div>Activity will populate from actual Supabase records as jobs, quotes, invoices and payments are added.</div>
                       </div>
                     ) : (
                       <div style={{ display: 'grid', gap: '14px' }}>
-                        {recentActivity.map((entry, index) => (
+                        {timelineEntries.map((entry, index) => (
                           <div key={entry.id} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                               <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#d4af37', boxShadow: '0 0 18px rgba(212,175,55,0.6)' }} />
-                              {index < recentActivity.length - 1 && <div style={{ width: '1px', height: '42px', background: 'rgba(212,175,55,0.25)', marginTop: '8px' }} />}
+                              {index < timelineEntries.length - 1 && <div style={{ width: '1px', height: '42px', background: 'rgba(212,175,55,0.25)', marginTop: '8px' }} />}
                             </div>
                             <button type="button" onClick={() => { setWorkspaceTab(entry.type === 'job' ? 'jobs' : entry.type === 'quote' ? 'quotes' : entry.type === 'invoice' ? 'invoices' : 'activity'); setCustomerActionStatus(`${entry.label} opened.`) }} style={{ flex: 1, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px 16px', color: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
