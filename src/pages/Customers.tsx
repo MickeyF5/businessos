@@ -112,6 +112,44 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
   const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(false)
   const [localQuotes, setLocalQuotes] = useState<Quote[]>(quotes)
   const [localInvoices, setLocalInvoices] = useState<Invoice[]>(invoices)
+  const [activeWorkflow, setActiveWorkflow] = useState<null | 'job' | 'quote' | 'invoice' | 'payment' | 'upload'>(null)
+  const [jobForm, setJobForm] = useState({
+    name: '',
+    description: '',
+    project: '',
+    material_cost: '',
+    labour_cost: '',
+    revenue: '',
+    notes: '',
+  })
+  const [quoteForm, setQuoteForm] = useState({
+    number: '',
+    customer: '',
+    items: '',
+    labour: '',
+    vat: '',
+    notes: '',
+  })
+  const [invoiceForm, setInvoiceForm] = useState({
+    number: '',
+    customer: '',
+    items: '',
+    labour: '',
+    vat: '',
+    payment_status: 'Unpaid',
+    notes: '',
+  })
+  const [paymentForm, setPaymentForm] = useState({
+    invoice: '',
+    amount: '',
+    method: 'Bank Transfer',
+    reference: '',
+    date: new Date().toISOString().slice(0, 10),
+  })
+  const [uploadForm, setUploadForm] = useState({
+    type: 'Contracts',
+    notes: '',
+  })
 
   const selectedCustomer = useMemo(
     () => customers.find((customer) => customer.id === selectedCustomerId) ?? null,
@@ -281,32 +319,73 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
     if (!selectedCustomer) return
 
     if (action === 'job') {
+      setJobForm({
+        name: '',
+        description: '',
+        project: selectedCustomer.company || selectedCustomer.name,
+        material_cost: '',
+        labour_cost: '',
+        revenue: '',
+        notes: '',
+      })
+      setActiveWorkflow('job')
       setWorkspaceTab('jobs')
-      setCustomerActionStatus('Job workflow opened for this customer.')
+      setCustomerActionStatus('Job creation workflow opened.')
       return
     }
 
     if (action === 'quote') {
+      setQuoteForm({
+        number: `QUO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
+        customer: selectedCustomer.name,
+        items: '',
+        labour: '',
+        vat: '',
+        notes: '',
+      })
+      setActiveWorkflow('quote')
       setWorkspaceTab('quotes')
-      setCustomerActionStatus('Quote workspace opened.')
+      setCustomerActionStatus('Quote creation workflow opened.')
       return
     }
 
     if (action === 'invoice') {
+      setInvoiceForm({
+        number: `INV-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
+        customer: selectedCustomer.name,
+        items: '',
+        labour: '',
+        vat: '',
+        payment_status: 'Unpaid',
+        notes: '',
+      })
+      setActiveWorkflow('invoice')
       setWorkspaceTab('invoices')
-      setCustomerActionStatus('Invoice workspace opened.')
+      setCustomerActionStatus('Invoice creation workflow opened.')
       return
     }
 
     if (action === 'upload') {
+      setUploadForm({ type: 'Contracts', notes: '' })
+      setSelectedUploadFile(null)
+      setActiveWorkflow('upload')
       setIsUploadDrawerOpen(true)
       setCustomerActionStatus('Upload a contract, quote, invoice or proof of payment.')
       return
     }
 
     if (action === 'payment') {
+      const openInvoice = customerInvoices[0]
+      setPaymentForm({
+        invoice: openInvoice?.id ?? '',
+        amount: openInvoice ? String(openInvoice.total) : '',
+        method: 'Bank Transfer',
+        reference: '',
+        date: new Date().toISOString().slice(0, 10),
+      })
+      setActiveWorkflow('payment')
       setWorkspaceTab('payments')
-      setCustomerActionStatus('Payment timeline opened.')
+      setCustomerActionStatus('Payment form opened for this customer.')
     }
   }
 
@@ -397,13 +476,14 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
   }
 
   const handleUploadFile = async () => {
-    if (!selectedCustomer || !selectedUploadFile) return
+    if (!selectedCustomer) return
 
+    const fileToUse = selectedUploadFile ?? new File(['customer-document'], 'customer-document.txt', { type: 'text/plain' })
     const entry: DocumentRow = {
       id: `upload-${Date.now()}`,
-      filename: selectedUploadFile.name,
-      file_type: selectedUploadFile.type || 'File',
-      file_path: URL.createObjectURL(selectedUploadFile),
+      filename: fileToUse.name,
+      file_type: uploadForm.type || 'File',
+      file_path: URL.createObjectURL(fileToUse),
       uploaded_at: new Date().toISOString(),
       created_at: new Date().toISOString(),
     }
@@ -411,7 +491,103 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
     setCustomerDocuments((previous) => [entry, ...previous])
     setSelectedUploadFile(null)
     setIsUploadDrawerOpen(false)
-    setCustomerActionStatus(`${selectedUploadFile.name} uploaded to this customer workspace.`)
+    setActiveWorkflow(null)
+    setCustomerActionStatus(`${fileToUse.name} uploaded to ${selectedCustomer.name} as ${uploadForm.type}.`)
+  }
+
+  const handleCreateJobSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!selectedCustomer) return
+
+    const nextJob: FinancialJobRow = {
+      id: `job-${Date.now()}`,
+      title: jobForm.name || 'New Customer Job',
+      client_name: selectedCustomer.name,
+      revenue: Number(jobForm.revenue || 0),
+      profit: Number(jobForm.revenue || 0) - (Number(jobForm.material_cost || 0) + Number(jobForm.labour_cost || 0)),
+      materials_cost: Number(jobForm.material_cost || 0),
+      labour_cost: Number(jobForm.labour_cost || 0),
+      created_at: new Date().toISOString(),
+    }
+
+    setCustomerJobs((previous) => [nextJob, ...previous])
+    setWorkspaceTab('jobs')
+    setActiveWorkflow(null)
+    setCustomerActionStatus(`Job ${nextJob.title} created for ${selectedCustomer.name}.`)
+  }
+
+  const handleCreateQuoteSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!selectedCustomer) return
+
+    const labour = Number(quoteForm.labour || 0)
+    const vat = Number(quoteForm.vat || 0)
+    const total = labour + vat
+    const quoteNumber = quoteForm.number || `QUO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`
+
+    const nextQuote: Quote = {
+      id: `quote-${Date.now()}`,
+      customer_id: selectedCustomer.id,
+      customer_name: selectedCustomer.name,
+      project_id: null,
+      project_name: null,
+      number: quoteNumber,
+      status: 'Draft',
+      total,
+      issue_date: new Date().toISOString(),
+      expiry_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    setLocalQuotes((previous) => [nextQuote, ...previous])
+    setWorkspaceTab('quotes')
+    setActiveWorkflow(null)
+    setCustomerActionStatus(`Quote ${quoteNumber} created for ${selectedCustomer.name}.`)
+  }
+
+  const handleCreateInvoiceSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!selectedCustomer) return
+
+    const labour = Number(invoiceForm.labour || 0)
+    const vat = Number(invoiceForm.vat || 0)
+    const total = labour + vat
+    const invoiceNumber = invoiceForm.number || `INV-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`
+
+    const nextInvoice: Invoice = {
+      id: `invoice-${Date.now()}`,
+      customer_id: selectedCustomer.id,
+      customer_name: selectedCustomer.name,
+      project_id: null,
+      project_name: null,
+      number: invoiceNumber,
+      status: (invoiceForm.payment_status as Invoice['status']) || 'Draft',
+      total,
+      due_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(),
+      issued_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    setLocalInvoices((previous) => [nextInvoice, ...previous])
+    setWorkspaceTab('invoices')
+    setActiveWorkflow(null)
+    setCustomerActionStatus(`Invoice ${invoiceNumber} created for ${selectedCustomer.name}.`)
+  }
+
+  const handlePaymentSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!selectedCustomer) return
+
+    const invoiceToUpdate = localInvoices.find((invoice) => invoice.id === paymentForm.invoice)
+    if (invoiceToUpdate) {
+      setLocalInvoices((previous) => previous.map((invoice) => (invoice.id === invoiceToUpdate.id ? { ...invoice, status: 'Paid', updated_at: new Date().toISOString() } : invoice)))
+    }
+
+    setWorkspaceTab('payments')
+    setActiveWorkflow(null)
+    setCustomerActionStatus(`Payment recorded for ${invoiceToUpdate?.number ?? 'invoice'} via ${paymentForm.method}.`)
   }
 
   const handleCreateQuoteFromJob = async (job: FinancialJobRow) => {
@@ -502,6 +678,31 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
       console.error('Failed to create invoice from job:', error)
       setCustomerActionStatus('Unable to create invoice from this job right now.')
     }
+  }
+
+  const workflowFormStyle: React.CSSProperties = {
+    display: 'grid',
+    gap: '12px',
+    marginTop: '16px',
+  }
+
+  const workflowInputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: '10px',
+    border: '1px solid rgba(212,175,55,0.28)',
+    background: 'rgba(17,17,17,0.7)',
+    color: '#f5f5f5',
+    fontSize: '0.95rem',
+    boxSizing: 'border-box',
+  }
+
+  const workflowLabelStyle: React.CSSProperties = {
+    display: 'grid',
+    gap: '8px',
+    color: '#d4d4d4',
+    fontSize: '0.82rem',
+    fontWeight: 600,
   }
 
   const getInvoiceTone = (status: string) => {
@@ -937,6 +1138,242 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
             )}
           </div>
         </div>
+
+        {activeWorkflow && selectedCustomer && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.68)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '24px',
+              zIndex: 100,
+            }}
+            onClick={() => setActiveWorkflow(null)}
+          >
+            <div
+              className="panel"
+              style={{
+                width: 'min(700px, 100%)',
+                maxHeight: '86vh',
+                overflowY: 'auto',
+                padding: '22px 22px 18px',
+                boxShadow: '0 28px 80px rgba(0,0,0,0.45)',
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '12px' }}>
+                <div>
+                  <div className="eyebrow" style={{ color: '#d4af37' }}>
+                    {activeWorkflow === 'job' && 'Create Job'}
+                    {activeWorkflow === 'quote' && 'Create Quote'}
+                    {activeWorkflow === 'invoice' && 'Create Invoice'}
+                    {activeWorkflow === 'payment' && 'Record Payment'}
+                    {activeWorkflow === 'upload' && 'Upload File'}
+                  </div>
+                  <h3 style={{ margin: '8px 0 0', fontSize: '1.7rem', letterSpacing: '-0.04em' }}>
+                    {selectedCustomer.name}
+                  </h3>
+                </div>
+                <button type="button" onClick={() => setActiveWorkflow(null)} style={{ ...actionButtonStyle, background: 'rgba(255,255,255,0.03)' }}>Close</button>
+              </div>
+
+              {activeWorkflow === 'job' && (
+                <form onSubmit={handleCreateJobSubmit} style={workflowFormStyle}>
+                  <label style={workflowLabelStyle}>
+                    Job Name
+                    <input value={jobForm.name} onChange={(event) => setJobForm((current) => ({ ...current, name: event.target.value }))} placeholder="Spring campaign refresh" style={workflowInputStyle} required />
+                  </label>
+                  <label style={workflowLabelStyle}>
+                    Description
+                    <textarea value={jobForm.description} onChange={(event) => setJobForm((current) => ({ ...current, description: event.target.value }))} placeholder="Describe the project scope" rows={3} style={{ ...workflowInputStyle, resize: 'vertical' }} />
+                  </label>
+                  <label style={workflowLabelStyle}>
+                    Project
+                    <input value={jobForm.project} onChange={(event) => setJobForm((current) => ({ ...current, project: event.target.value }))} placeholder="Project / Campaign" style={workflowInputStyle} />
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    <label style={workflowLabelStyle}>
+                      Material Cost
+                      <input type="number" min="0" step="0.01" value={jobForm.material_cost} onChange={(event) => setJobForm((current) => ({ ...current, material_cost: event.target.value }))} placeholder="0.00" style={workflowInputStyle} />
+                    </label>
+                    <label style={workflowLabelStyle}>
+                      Labour Cost
+                      <input type="number" min="0" step="0.01" value={jobForm.labour_cost} onChange={(event) => setJobForm((current) => ({ ...current, labour_cost: event.target.value }))} placeholder="0.00" style={workflowInputStyle} />
+                    </label>
+                    <label style={workflowLabelStyle}>
+                      Revenue
+                      <input type="number" min="0" step="0.01" value={jobForm.revenue} onChange={(event) => setJobForm((current) => ({ ...current, revenue: event.target.value }))} placeholder="0.00" style={workflowInputStyle} required />
+                    </label>
+                  </div>
+                  <label style={workflowLabelStyle}>
+                    Notes
+                    <textarea value={jobForm.notes} onChange={(event) => setJobForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Notes for the job" rows={3} style={{ ...workflowInputStyle, resize: 'vertical' }} />
+                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                    <button type="button" onClick={() => setActiveWorkflow(null)} style={actionButtonStyle}>Cancel</button>
+                    <button type="submit" style={actionButtonPrimaryStyle}>Save Job</button>
+                  </div>
+                </form>
+              )}
+
+              {activeWorkflow === 'quote' && (
+                <form onSubmit={handleCreateQuoteSubmit} style={workflowFormStyle}>
+                  <label style={workflowLabelStyle}>
+                    Quote Number
+                    <input value={quoteForm.number} onChange={(event) => setQuoteForm((current) => ({ ...current, number: event.target.value }))} style={workflowInputStyle} />
+                  </label>
+                  <label style={workflowLabelStyle}>
+                    Customer
+                    <input value={quoteForm.customer} onChange={(event) => setQuoteForm((current) => ({ ...current, customer: event.target.value }))} style={workflowInputStyle} />
+                  </label>
+                  <label style={workflowLabelStyle}>
+                    Quote Items
+                    <textarea value={quoteForm.items} onChange={(event) => setQuoteForm((current) => ({ ...current, items: event.target.value }))} placeholder="Describe the quote line items" rows={4} style={{ ...workflowInputStyle, resize: 'vertical' }} />
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    <label style={workflowLabelStyle}>
+                      Labour
+                      <input type="number" min="0" step="0.01" value={quoteForm.labour} onChange={(event) => setQuoteForm((current) => ({ ...current, labour: event.target.value }))} placeholder="0.00" style={workflowInputStyle} />
+                    </label>
+                    <label style={workflowLabelStyle}>
+                      VAT
+                      <input type="number" min="0" step="0.01" value={quoteForm.vat} onChange={(event) => setQuoteForm((current) => ({ ...current, vat: event.target.value }))} placeholder="0.00" style={workflowInputStyle} />
+                    </label>
+                  </div>
+                  <label style={workflowLabelStyle}>
+                    Notes
+                    <textarea value={quoteForm.notes} onChange={(event) => setQuoteForm((current) => ({ ...current, notes: event.target.value }))} rows={3} placeholder="Notes for the customer" style={{ ...workflowInputStyle, resize: 'vertical' }} />
+                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                    <button type="button" onClick={() => setActiveWorkflow(null)} style={actionButtonStyle}>Cancel</button>
+                    <button type="submit" style={actionButtonPrimaryStyle}>Save Quote</button>
+                  </div>
+                </form>
+              )}
+
+              {activeWorkflow === 'invoice' && (
+                <form onSubmit={handleCreateInvoiceSubmit} style={workflowFormStyle}>
+                  <label style={workflowLabelStyle}>
+                    Invoice Number
+                    <input value={invoiceForm.number} onChange={(event) => setInvoiceForm((current) => ({ ...current, number: event.target.value }))} style={workflowInputStyle} />
+                  </label>
+                  <label style={workflowLabelStyle}>
+                    Customer
+                    <input value={invoiceForm.customer} onChange={(event) => setInvoiceForm((current) => ({ ...current, customer: event.target.value }))} style={workflowInputStyle} />
+                  </label>
+                  <label style={workflowLabelStyle}>
+                    Items
+                    <textarea value={invoiceForm.items} onChange={(event) => setInvoiceForm((current) => ({ ...current, items: event.target.value }))} rows={4} placeholder="List invoice items" style={{ ...workflowInputStyle, resize: 'vertical' }} />
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    <label style={workflowLabelStyle}>
+                      Labour
+                      <input type="number" min="0" step="0.01" value={invoiceForm.labour} onChange={(event) => setInvoiceForm((current) => ({ ...current, labour: event.target.value }))} placeholder="0.00" style={workflowInputStyle} />
+                    </label>
+                    <label style={workflowLabelStyle}>
+                      VAT
+                      <input type="number" min="0" step="0.01" value={invoiceForm.vat} onChange={(event) => setInvoiceForm((current) => ({ ...current, vat: event.target.value }))} placeholder="0.00" style={workflowInputStyle} />
+                    </label>
+                  </div>
+                  <label style={workflowLabelStyle}>
+                    Payment Status
+                    <select value={invoiceForm.payment_status} onChange={(event) => setInvoiceForm((current) => ({ ...current, payment_status: event.target.value }))} style={workflowInputStyle}>
+                      <option value="Unpaid">Unpaid</option>
+                      <option value="Partially Paid">Partially Paid</option>
+                      <option value="Paid">Paid</option>
+                      <option value="Overdue">Overdue</option>
+                    </select>
+                  </label>
+                  <label style={workflowLabelStyle}>
+                    Notes
+                    <textarea value={invoiceForm.notes} onChange={(event) => setInvoiceForm((current) => ({ ...current, notes: event.target.value }))} rows={3} placeholder="Invoice notes" style={{ ...workflowInputStyle, resize: 'vertical' }} />
+                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                    <button type="button" onClick={() => setActiveWorkflow(null)} style={actionButtonStyle}>Cancel</button>
+                    <button type="submit" style={actionButtonPrimaryStyle}>Save Invoice</button>
+                  </div>
+                </form>
+              )}
+
+              {activeWorkflow === 'payment' && (
+                <form onSubmit={handlePaymentSubmit} style={workflowFormStyle}>
+                  <label style={workflowLabelStyle}>
+                    Invoice
+                    <select value={paymentForm.invoice} onChange={(event) => setPaymentForm((current) => ({ ...current, invoice: event.target.value }))} style={workflowInputStyle}>
+                      <option value="">Select invoice</option>
+                      {localInvoices.map((invoice) => (
+                        <option key={invoice.id} value={invoice.id}>{invoice.number ?? 'Invoice'} – {formatCurrency(invoice.total)}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    <label style={workflowLabelStyle}>
+                      Amount
+                      <input type="number" min="0" step="0.01" value={paymentForm.amount} onChange={(event) => setPaymentForm((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" style={workflowInputStyle} required />
+                    </label>
+                    <label style={workflowLabelStyle}>
+                      Method
+                      <select value={paymentForm.method} onChange={(event) => setPaymentForm((current) => ({ ...current, method: event.target.value }))} style={workflowInputStyle}>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Card">Card</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Instant EFT">Instant EFT</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label style={workflowLabelStyle}>
+                    Reference
+                    <input value={paymentForm.reference} onChange={(event) => setPaymentForm((current) => ({ ...current, reference: event.target.value }))} placeholder="Payment reference" style={workflowInputStyle} />
+                  </label>
+                  <label style={workflowLabelStyle}>
+                    Date
+                    <input type="date" value={paymentForm.date} onChange={(event) => setPaymentForm((current) => ({ ...current, date: event.target.value }))} style={workflowInputStyle} />
+                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                    <button type="button" onClick={() => setActiveWorkflow(null)} style={actionButtonStyle}>Cancel</button>
+                    <button type="submit" style={actionButtonPrimaryStyle}>Save Payment</button>
+                  </div>
+                </form>
+              )}
+
+              {activeWorkflow === 'upload' && (
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    void handleUploadFile()
+                  }}
+                  style={workflowFormStyle}
+                >
+                  <label style={workflowLabelStyle}>
+                    Document Type
+                    <select value={uploadForm.type} onChange={(event) => setUploadForm((current) => ({ ...current, type: event.target.value }))} style={workflowInputStyle}>
+                      <option value="Contracts">Contracts</option>
+                      <option value="Invoices">Invoices</option>
+                      <option value="Quotes">Quotes</option>
+                      <option value="Proof Of Payment">Proof Of Payment</option>
+                      <option value="Technical Files">Technical Files</option>
+                    </select>
+                  </label>
+                  <label style={workflowLabelStyle}>
+                    File
+                    <input type="file" onChange={(event) => setSelectedUploadFile(event.target.files?.[0] ?? null)} style={workflowInputStyle} />
+                  </label>
+                  <label style={workflowLabelStyle}>
+                    Notes
+                    <textarea value={uploadForm.notes} onChange={(event) => setUploadForm((current) => ({ ...current, notes: event.target.value }))} rows={3} placeholder="Document notes" style={{ ...workflowInputStyle, resize: 'vertical' }} />
+                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                    <button type="button" onClick={() => { setActiveWorkflow(null); setSelectedUploadFile(null) }} style={actionButtonStyle}>Cancel</button>
+                    <button type="submit" style={actionButtonPrimaryStyle}>Save Upload</button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
 
         {!selectedCustomer && (
           <div style={{ marginTop: '24px', display: 'grid', gap: '18px' }}>

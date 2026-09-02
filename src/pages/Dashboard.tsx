@@ -28,6 +28,10 @@ interface DashboardProps {
   onNavigateProjects: () => void
   onNavigateStock?: () => void
   onNavigateCustomers?: () => void
+  onCreateTask?: (input: { title: string; assignee: string; priority: 'High' | 'Medium' | 'Low'; due_date?: string | null; project_id?: string | null }) => Promise<unknown>
+  onCreateQuote?: (input: { customer_id?: string | null; customer_name?: string | null; project_id?: string | null; project_name?: string | null; total: number; expiry_date?: string | null }) => Promise<unknown>
+  onCreateInvoice?: (input: { customer_id?: string | null; customer_name?: string | null; project_id?: string | null; project_name?: string | null; total: number; due_date?: string | null; status?: string }) => Promise<unknown>
+  onCreateJob?: (input: { title: string; client_name: string; project_id?: string | null; project_name?: string | null; materials_cost: number; labour_cost: number; additional_expenses: number; revenue: number; notes?: string | null }) => Promise<unknown>
   canManageProjects: boolean
 }
 
@@ -60,6 +64,10 @@ export function Dashboard({
   onOpenProjectDetail,
   onNavigateProjects,
   onNavigateCustomers,
+  onCreateTask,
+  onCreateQuote,
+  onCreateInvoice,
+  onCreateJob,
   canManageProjects,
 }: DashboardProps) {
   const activeTasks = tasks.filter((task) => !task.done).length
@@ -69,6 +77,50 @@ export function Dashboard({
   const retentionRate = customers.length > 0 ? Math.round((activeCustomers / customers.length) * 100) : 0
 
   const sortedProjects = sortByPriority(projects)
+
+  const handleQuickCreate = async (type: 'quote' | 'invoice' | 'job' | 'task') => {
+    if (type === 'task') {
+      const title = `Follow-up task ${new Date().toLocaleDateString('en-ZA')}`
+      if (onCreateTask) {
+        await onCreateTask({ title, assignee: currentUserName || 'Unassigned', priority: 'Medium' })
+      }
+      return
+    }
+
+    if (type === 'quote' && onCreateQuote) {
+      const customer = customers[0]
+      await onCreateQuote({
+        customer_id: customer?.id ?? null,
+        customer_name: customer?.name ?? null,
+        total: 0,
+      })
+      return
+    }
+
+    if (type === 'invoice' && onCreateInvoice) {
+      const customer = customers[0]
+      await onCreateInvoice({
+        customer_id: customer?.id ?? null,
+        customer_name: customer?.name ?? null,
+        total: 0,
+      })
+      return
+    }
+
+    if (type === 'job' && onCreateJob) {
+      const customer = customers[0]
+      await onCreateJob({
+        title: `New operational job ${new Date().toLocaleDateString('en-ZA')}`,
+        client_name: customer?.name || 'New Client',
+        project_id: projects[0]?.id ?? null,
+        project_name: projects[0]?.name ?? null,
+        materials_cost: 0,
+        labour_cost: 0,
+        additional_expenses: 0,
+        revenue: 0,
+      })
+    }
+  }
 
   return (
     <div className="page-shell">
@@ -295,6 +347,7 @@ export function Dashboard({
             </button>
 
             <button
+              onClick={() => void handleQuickCreate('quote')}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', background: 'rgba(168, 85, 247, 0.08)', border: '1px solid rgba(168, 85, 247, 0.22)', borderRadius: '8px', color: '#a855f7', cursor: 'pointer', transition: 'all 0.2s ease', fontSize: '0.8rem', fontWeight: '600' }}
             >
               <FileText size={16} />
@@ -302,6 +355,7 @@ export function Dashboard({
             </button>
 
             <button
+              onClick={() => void handleQuickCreate('invoice')}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', background: 'rgba(96, 165, 250, 0.08)', border: '1px solid rgba(96, 165, 250, 0.22)', borderRadius: '8px', color: '#60a5fa', cursor: 'pointer', transition: 'all 0.2s ease', fontSize: '0.8rem', fontWeight: '600' }}
             >
               <ReceiptText size={16} />
@@ -309,6 +363,7 @@ export function Dashboard({
             </button>
 
             <button
+              onClick={() => void handleQuickCreate('job')}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', background: 'rgba(45, 212, 191, 0.08)', border: '1px solid rgba(45, 212, 191, 0.22)', borderRadius: '8px', color: '#2dd4bf', cursor: 'pointer', transition: 'all 0.2s ease', fontSize: '0.8rem', fontWeight: '600' }}
             >
               <ShoppingCart size={16} />
@@ -316,6 +371,7 @@ export function Dashboard({
             </button>
 
             <button
+              onClick={() => void handleQuickCreate('task')}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', background: 'rgba(248, 113, 113, 0.08)', border: '1px solid rgba(248, 113, 113, 0.22)', borderRadius: '8px', color: '#f87171', cursor: 'pointer', transition: 'all 0.2s ease', fontSize: '0.8rem', fontWeight: '600' }}
             >
               <Ticket size={16} />

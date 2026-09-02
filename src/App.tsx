@@ -219,6 +219,152 @@ export default function App() {
     }
   }
 
+  const createTaskRecord = async (input: { title: string; assignee: string; priority: 'High' | 'Medium' | 'Low'; due_date?: string | null; project_id?: string | null }) => {
+    const saved = await addTask({
+      title: input.title,
+      assignee: input.assignee || currentUser?.name || 'Unassigned',
+      assigneeId: undefined,
+      done: false,
+      overdue: false,
+      priority: input.priority,
+      due_date: input.due_date ?? null,
+      project_id: input.project_id ?? null,
+    })
+
+    setTasks((previousTasks) => [saved, ...previousTasks])
+    return saved
+  }
+
+  const createQuoteRecord = async (input: { customer_id?: string | null; customer_name?: string | null; project_id?: string | null; project_name?: string | null; total: number; expiry_date?: string | null }) => {
+    const number = `QUO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`
+    const { data, error } = await supabase
+      .from('quotes')
+      .insert([
+        {
+          customer_id: input.customer_id ?? null,
+          customer_name: input.customer_name ?? null,
+          project_id: input.project_id ?? null,
+          project_name: input.project_name ?? null,
+          number,
+          status: 'Draft',
+          total: Number(input.total ?? 0),
+          issue_date: new Date().toISOString(),
+          expiry_date: input.expiry_date ?? new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(),
+        },
+      ])
+      .select()
+      .single()
+
+    if (error) throw error
+
+    const nextQuote: any = {
+      id: data.id,
+      customer_id: data.customer_id ?? null,
+      customer_name: data.customer_name ?? null,
+      project_id: data.project_id ?? null,
+      project_name: data.project_name ?? null,
+      number: data.number ?? null,
+      status: data.status ?? 'Draft',
+      total: Number(data.total ?? 0),
+      issue_date: data.issue_date ?? null,
+      expiry_date: data.expiry_date ?? null,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    }
+
+    setQuotes((previous) => [nextQuote, ...previous])
+    return nextQuote
+  }
+
+  const createInvoiceRecord = async (input: { customer_id?: string | null; customer_name?: string | null; project_id?: string | null; project_name?: string | null; total: number; due_date?: string | null; status?: string }) => {
+    const number = `INV-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`
+    const { data, error } = await supabase
+      .from('invoices')
+      .insert([
+        {
+          customer_id: input.customer_id ?? null,
+          customer_name: input.customer_name ?? null,
+          project_id: input.project_id ?? null,
+          project_name: input.project_name ?? null,
+          number,
+          status: input.status ?? 'Draft',
+          total: Number(input.total ?? 0),
+          due_date: input.due_date ?? new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(),
+          issued_at: new Date().toISOString(),
+        },
+      ])
+      .select()
+      .single()
+
+    if (error) throw error
+
+    const nextInvoice: any = {
+      id: data.id,
+      customer_id: data.customer_id ?? null,
+      customer_name: data.customer_name ?? null,
+      project_id: data.project_id ?? null,
+      project_name: data.project_name ?? null,
+      number: data.number ?? null,
+      status: data.status ?? 'Draft',
+      total: Number(data.total ?? 0),
+      due_date: data.due_date ?? null,
+      issued_at: data.issued_at ?? null,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    }
+
+    setInvoices((previous) => [nextInvoice, ...previous])
+    return nextInvoice
+  }
+
+  const createJobRecord = async (input: { title: string; client_name: string; project_id?: string | null; project_name?: string | null; materials_cost: number; labour_cost: number; additional_expenses: number; revenue: number; notes?: string | null }) => {
+    const selectedProject = projects.find((project) => project.id === input.project_id)
+    const totalCost = Number(input.materials_cost ?? 0) + Number(input.labour_cost ?? 0) + Number(input.additional_expenses ?? 0)
+    const profit = Number(input.revenue ?? 0) - totalCost
+
+    const { data, error } = await supabase
+      .from('financial_jobs')
+      .insert([
+        {
+          title: input.title,
+          client_name: input.client_name,
+          project_id: input.project_id ?? null,
+          project_name: selectedProject?.name ?? input.project_name ?? null,
+          materials_cost: Number(input.materials_cost ?? 0),
+          labour_cost: Number(input.labour_cost ?? 0),
+          additional_expenses: Number(input.additional_expenses ?? 0),
+          revenue: Number(input.revenue ?? 0),
+          profit,
+          notes: input.notes ?? null,
+          created_by: currentUser?.id ?? null,
+        },
+      ])
+      .select()
+      .single()
+
+    if (error) throw error
+
+    const nextJob: JobCostingRecord = {
+      id: data.id,
+      title: data.title,
+      client_name: data.client_name,
+      project_id: data.project_id ?? null,
+      project_name: data.project_name ?? null,
+      materials_cost: Number(data.materials_cost ?? 0),
+      labour_cost: Number(data.labour_cost ?? 0),
+      additional_expenses: Number(data.additional_expenses ?? 0),
+      revenue: Number(data.revenue ?? 0),
+      profit: Number(data.profit ?? 0),
+      notes: data.notes ?? '',
+      created_by: data.created_by ?? null,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    }
+
+    setJobs((previous) => [nextJob, ...previous])
+    return nextJob
+  }
+
   const handleAddStockItem = async (payload: Omit<StockItem, 'id'>) => {
     const saved = await upsertInventoryItem(payload)
     setStock((previous) => {
@@ -661,6 +807,10 @@ export default function App() {
             onNavigateProjects={() => navigateTo('projects-manage')}
             onNavigateStock={() => navigateTo('stock')}
             onNavigateCustomers={() => navigateTo('customers')}
+            onCreateTask={createTaskRecord}
+            onCreateQuote={createQuoteRecord}
+            onCreateInvoice={createInvoiceRecord}
+            onCreateJob={createJobRecord}
             canManageProjects={hasPermission(role, 'editProject')}
           />
         )
