@@ -36,6 +36,7 @@ export interface Permission {
   manageUsers: boolean
   changeRoles: boolean
   accessAdminPortal: boolean
+  accessExecutiveControlCenter: boolean
   manageSettings: boolean
 }
 
@@ -62,6 +63,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission> = {
     manageUsers: true,
     changeRoles: true,
     accessAdminPortal: true,
+    accessExecutiveControlCenter: true,
     manageSettings: true,
   },
   founder: {
@@ -86,6 +88,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission> = {
     manageUsers: true,
     changeRoles: false,
     accessAdminPortal: false,
+    accessExecutiveControlCenter: false,
     manageSettings: false,
   },
   manager: {
@@ -110,6 +113,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission> = {
     manageUsers: false,
     changeRoles: false,
     accessAdminPortal: false,
+    accessExecutiveControlCenter: false,
     manageSettings: false,
   },
   employee: {
@@ -134,6 +138,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission> = {
     manageUsers: false,
     changeRoles: false,
     accessAdminPortal: false,
+    accessExecutiveControlCenter: false,
     manageSettings: false,
   },
 }

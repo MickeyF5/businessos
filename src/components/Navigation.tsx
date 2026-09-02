@@ -25,6 +25,7 @@ export function Navigation({ currentView, role, onNavigate, isOpen, onClose }: N
     { view: 'customers' as const, label: 'Customers', icon: 'customers' },
     { view: 'network' as const, label: 'Network', icon: 'network' },
     { view: 'strategy' as const, label: 'Strategy', icon: 'strategy' },
+    { view: 'executive-control-center' as const, label: 'Executive Control Center', icon: 'executive' },
     { view: 'admin' as const, label: 'Admin Portal', icon: 'admin' },
   ]
 
@@ -32,17 +33,21 @@ export function Navigation({ currentView, role, onNavigate, isOpen, onClose }: N
     <nav className="nav-shell">
       {navItems.map(({ view, label, icon }) => {
         const permitted =
-          view === 'dashboard' ||
-          view === 'strategy' ||
-          view === 'projects-manage'
-            ? hasPermission(role, 'viewProjects') || view === 'dashboard' || view === 'strategy'
-            : view === 'stock'
-              ? hasPermission(role, 'viewStock')
-              : view === 'customers'
-                ? hasPermission(role, 'viewCustomers')
-                : view === 'network'
-                  ? hasPermission(role, 'viewNetwork')
-                  : hasPermission(role, 'accessAdminPortal')
+          view === 'dashboard'
+            ? true
+            : view === 'strategy'
+              ? true
+              : view === 'projects-manage'
+                ? hasPermission(role, 'viewProjects')
+                : view === 'stock'
+                  ? hasPermission(role, 'viewStock')
+                  : view === 'customers'
+                    ? hasPermission(role, 'viewCustomers')
+                    : view === 'network'
+                      ? hasPermission(role, 'viewNetwork')
+                      : view === 'executive-control-center'
+                        ? hasPermission(role, 'accessExecutiveControlCenter')
+                        : hasPermission(role, 'accessAdminPortal')
 
         if (!permitted) return null
 

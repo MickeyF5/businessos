@@ -9,6 +9,15 @@ interface StockProps {
   onDelete: (id: string) => Promise<void>
 }
 
+const currencyFormatter = new Intl.NumberFormat('en-ZA', {
+  style: 'currency',
+  currency: 'ZAR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+const formatCurrency = (value: number) => currencyFormatter.format(Number.isFinite(value) ? value : 0)
+
 const emptyStockForm = {
   name: '',
   sku: '',
@@ -109,7 +118,7 @@ export function Stock({ stock, onCreate, onUpdate, onDelete }: StockProps) {
                     <td style={{ padding: '12px 8px', fontWeight: 700 }}>{item.name}</td>
                     <td style={{ padding: '12px 8px', color: '#d1d5db' }}>{item.sku}</td>
                     <td style={{ padding: '12px 8px', color: item.quantity < 10 ? '#fbbf24' : '#e5e7eb' }}>{item.quantity} units</td>
-                    <td style={{ padding: '12px 8px', color: '#60a5fa', fontWeight: 700 }}>${item.price.toLocaleString()}</td>
+                    <td style={{ padding: '12px 8px', color: '#60a5fa', fontWeight: 700 }}>{formatCurrency(item.price)}</td>
                     <td style={{ padding: '12px 8px' }}>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         <button type="button" onClick={() => handleEdit(item)} style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>Edit</button>

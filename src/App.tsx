@@ -9,6 +9,7 @@ import { Customers } from './pages/Customers'
 import { Network } from './pages/Network'
 import { Strategy } from './pages/Strategy'
 import { AdminPortal } from './pages/AdminPortal'
+import { ExecutiveControlCenter } from './pages/ExecutiveControlCenter.tsx'
 import { supabase } from './lib/supabase'
 import {
   addProject,
@@ -21,10 +22,14 @@ import {
   deleteTaskById,
   fetchCustomers,
   fetchInventory,
+  fetchInvoices,
+  fetchNotifications,
   fetchPartners,
   fetchProjects,
+  fetchQuotes,
   fetchStrategies,
   fetchTasks,
+  searchRecords,
   upsertCustomer,
   upsertInventoryItem,
   upsertPartner,
@@ -33,7 +38,24 @@ import {
   updateTask,
 } from './lib/supabaseData'
 import { hasPermission } from './lib/permissions'
-import type { Customer, Partner, Project, StockItem, StrategyItem, Task, UserProfile, UserRole, View } from './types'
+import type {
+  Customer,
+  ExpenseRecord,
+  FinancialAuditLog,
+  FinancialSetting,
+  JobCostingRecord,
+  OwnerDrawRecord,
+  Partner,
+  PayrollRecord,
+  Project,
+  ProjectStatus,
+  StockItem,
+  StrategyItem,
+  Task,
+  UserProfile,
+  UserRole,
+  View,
+} from './types'
 import './App.css'
 
 const inputStyle: React.CSSProperties = {
@@ -74,34 +96,60 @@ export default function App() {
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [projectName, setProjectName] = useState('')
-  const [projectIcon, setProjectIcon] = useState('PRJ')
   const [projectDesc, setProjectDesc] = useState('')
+  const [projectPriority, setProjectPriority] = useState<'High' | 'Medium' | 'Low'>('Medium')
+  const [projectStatus, setProjectStatus] = useState<ProjectStatus>('Planning')
+  const [projectStartDate, setProjectStartDate] = useState('')
+  const [projectDueDate, setProjectDueDate] = useState('')
+  const [projectAssignedUsers, setProjectAssignedUsers] = useState<string[]>([])
+  const [projectCustomerId, setProjectCustomerId] = useState<string | null>(null)
 
   const [tasks, setTasks] = useState<Task[]>([])
 
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskAssignee, setNewTaskAssignee] = useState('')
   const [newTaskAssigneeId, setNewTaskAssigneeId] = useState<string | undefined>()
+  const [newTaskPriority, setNewTaskPriority] = useState<'High' | 'Medium' | 'Low'>('Medium')
 
   const [stock, setStock] = useState<StockItem[]>([])
 
   const [customers, setCustomers] = useState<Customer[]>([])
+  const [quotes, setQuotes] = useState<any[]>([])
+  const [invoices, setInvoices] = useState<any[]>([])
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
 
   const [partners, setPartners] = useState<Partner[]>([])
 
   const [strategies, setStrategies] = useState<StrategyItem[]>([])
+  const [jobs, setJobs] = useState<JobCostingRecord[]>([])
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([])
+  const [payrollRecords, setPayrollRecords] = useState<PayrollRecord[]>([])
+  const [ownerDraws, setOwnerDraws] = useState<OwnerDrawRecord[]>([])
+  const [financialSettings, setFinancialSettings] = useState<FinancialSetting | null>(null)
+  const [auditLogs, setAuditLogs] = useState<FinancialAuditLog[]>([])
 
   const refreshBusinessData = async () => {
     if (!session?.user) return
 
     try {
-      const [nextTasks, nextProjects, nextInventory, nextCustomers, nextPartners, nextStrategies] = await Promise.all([
+      const [nextTasks, nextProjects, nextInventory, nextCustomers, nextPartners, nextStrategies, nextJobs, nextExpenses, nextPayrollRecords, nextOwnerDraws, nextFinancialSettings, nextAuditLogs, nextQuotes, nextInvoices, nextNotifications] = await Promise.all([
         fetchTasks(),
         fetchProjects(),
         fetchInventory(),
         fetchCustomers(),
         fetchPartners(),
         fetchStrategies(),
+        supabase.from('financial_jobs').select('*').order('created_at', { ascending: false }),
+        supabase.from('financial_expenses').select('*').order('created_at', { ascending: false }),
+        supabase.from('financial_payroll').select('*').order('created_at', { ascending: false }),
+        supabase.from('owner_draws').select('*').order('created_at', { ascending: false }),
+        supabase.from('financial_settings').select('*').maybeSingle(),
+        supabase.from('financial_audit_logs').select('*').order('created_at', { ascending: false }).limit(50),
+        fetchQuotes(),
+        fetchInvoices(),
+        fetchNotifications(),
       ])
 
       setTasks(nextTasks)
@@ -110,6 +158,15 @@ export default function App() {
       setCustomers(nextCustomers)
       setPartners(nextPartners)
       setStrategies(nextStrategies)
+      setQuotes(nextQuotes)
+      setInvoices(nextInvoices)
+      setNotifications(nextNotifications)
+      setJobs((nextJobs.data ?? []) as JobCostingRecord[])
+      setExpenses((nextExpenses.data ?? []) as ExpenseRecord[])
+      setPayrollRecords((nextPayrollRecords.data ?? []) as PayrollRecord[])
+      setOwnerDraws((nextOwnerDraws.data ?? []) as OwnerDrawRecord[])
+      setFinancialSettings((nextFinancialSettings.data ?? null) as FinancialSetting | null)
+      setAuditLogs((nextAuditLogs.data ?? []) as FinancialAuditLog[])
     } catch (error) {
       console.error('Failed to refresh business data:', error)
     }
@@ -126,12 +183,14 @@ export default function App() {
         assigneeId: newTaskAssigneeId,
         done: false,
         overdue: false,
+        priority: newTaskPriority,
       })
 
       setTasks((previousTasks) => [nextTask, ...previousTasks])
       setNewTaskTitle('')
       setNewTaskAssignee('')
       setNewTaskAssigneeId(undefined)
+      setNewTaskPriority('Medium')
     } catch (error) {
       console.error('Failed to add task:', error)
     }
@@ -249,6 +308,17 @@ export default function App() {
     setCurrentView('project-detail')
   }
 
+  const resetProjectForm = () => {
+    setProjectName('')
+    setProjectDesc('')
+    setProjectPriority('Medium')
+    setProjectStatus('Planning')
+    setProjectStartDate('')
+    setProjectDueDate('')
+    setProjectAssignedUsers([])
+    setProjectCustomerId(null)
+  }
+
   const handleSaveProject = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!projectName.trim()) return
@@ -256,18 +326,30 @@ export default function App() {
     try {
       if (editingId) {
         const updatedProject = await updateProject(editingId, {
-          icon: projectIcon,
+          icon: 'PRJ',
           name: projectName,
           description: projectDesc,
+          priority: projectPriority,
+          status: projectStatus,
+          start_date: projectStartDate || null,
+          due_date: projectDueDate || null,
+          assigned_users: projectAssignedUsers,
+          customer_id: projectCustomerId,
           details: selectedProject?.details ?? ['Newly created project workspace.'],
         })
         setProjects((previousProjects) => previousProjects.map((project) => (project.id === editingId ? updatedProject : project)))
         setEditingId(null)
       } else {
         const createdProject = await addProject({
-          icon: projectIcon,
+          icon: 'PRJ',
           name: projectName,
           description: projectDesc || 'No description provided.',
+          priority: projectPriority,
+          status: projectStatus,
+          start_date: projectStartDate || null,
+          due_date: projectDueDate || null,
+          assigned_users: projectAssignedUsers,
+          customer_id: projectCustomerId,
           details: ['Newly created project workspace.'],
         })
         setProjects((previousProjects) => [createdProject, ...previousProjects])
@@ -276,16 +358,23 @@ export default function App() {
       console.error('Failed to save project:', error)
     }
 
-    setProjectName('')
-    setProjectIcon('PRJ')
-    setProjectDesc('')
+    resetProjectForm()
+  }
+
+  const handleSaveProjectDraft = () => {
+    resetProjectForm()
   }
 
   const startEdit = (project: Project) => {
     setEditingId(project.id)
     setProjectName(project.name)
-    setProjectIcon(project.icon)
     setProjectDesc(project.description || '')
+    setProjectPriority(project.priority || 'Medium')
+    setProjectStatus(project.status || 'Planning')
+    setProjectStartDate(project.start_date || '')
+    setProjectDueDate(project.due_date || '')
+    setProjectAssignedUsers(project.assigned_users ?? [])
+    setProjectCustomerId(project.customer_id ?? null)
     setCurrentView('projects-manage')
   }
 
@@ -459,6 +548,30 @@ export default function App() {
       supabase.channel('public:strategies').on('postgres_changes', { event: '*', schema: 'public', table: 'strategies' }, () => {
         void refreshBusinessData()
       }),
+      supabase.channel('public:financial_jobs').on('postgres_changes', { event: '*', schema: 'public', table: 'financial_jobs' }, () => {
+        void refreshBusinessData()
+      }),
+      supabase.channel('public:financial_expenses').on('postgres_changes', { event: '*', schema: 'public', table: 'financial_expenses' }, () => {
+        void refreshBusinessData()
+      }),
+      supabase.channel('public:financial_payroll').on('postgres_changes', { event: '*', schema: 'public', table: 'financial_payroll' }, () => {
+        void refreshBusinessData()
+      }),
+      supabase.channel('public:owner_draws').on('postgres_changes', { event: '*', schema: 'public', table: 'owner_draws' }, () => {
+        void refreshBusinessData()
+      }),
+      supabase.channel('public:financial_settings').on('postgres_changes', { event: '*', schema: 'public', table: 'financial_settings' }, () => {
+        void refreshBusinessData()
+      }),
+      supabase.channel('public:financial_audit_logs').on('postgres_changes', { event: '*', schema: 'public', table: 'financial_audit_logs' }, () => {
+        void refreshBusinessData()
+      }),
+      supabase.channel('public:quotes').on('postgres_changes', { event: '*', schema: 'public', table: 'quotes' }, () => {
+        void refreshBusinessData()
+      }),
+      supabase.channel('public:invoices').on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => {
+        void refreshBusinessData()
+      }),
     ]
 
     channels.forEach((channel) => channel.subscribe())
@@ -536,14 +649,18 @@ export default function App() {
             currentUserName={currentUser?.name}
             newTaskTitle={newTaskTitle}
             newTaskAssignee={newTaskAssignee}
+            newTaskPriority={newTaskPriority}
             onTaskAssigneeIdChange={setNewTaskAssigneeId}
             onAddTask={handleAddTask}
             onTaskTitleChange={setNewTaskTitle}
             onTaskAssigneeChange={setNewTaskAssignee}
+            onTaskPriorityChange={setNewTaskPriority}
             onToggleTask={toggleTask}
             onDeleteTask={deleteTask}
             onOpenProjectDetail={openProjectDetail}
             onNavigateProjects={() => navigateTo('projects-manage')}
+            onNavigateStock={() => navigateTo('stock')}
+            onNavigateCustomers={() => navigateTo('customers')}
             canManageProjects={hasPermission(role, 'editProject')}
           />
         )
@@ -553,33 +670,66 @@ export default function App() {
             projects={projects}
             editingId={editingId}
             projectName={projectName}
-            projectIcon={projectIcon}
             projectDesc={projectDesc}
+            projectPriority={projectPriority}
+            projectStatus={projectStatus}
+            projectStartDate={projectStartDate}
+            projectDueDate={projectDueDate}
+            projectAssignedUsers={projectAssignedUsers}
+            projectCustomerId={projectCustomerId}
+            customers={customers}
             canManageProjects={hasPermission(role, 'editProject')}
             onProjectNameChange={setProjectName}
-            onProjectIconChange={setProjectIcon}
             onProjectDescChange={setProjectDesc}
+            onProjectPriorityChange={setProjectPriority}
+            onProjectStatusChange={setProjectStatus}
+            onProjectStartDateChange={setProjectStartDate}
+            onProjectDueDateChange={setProjectDueDate}
+            onProjectAssignedUsersChange={setProjectAssignedUsers}
+            onProjectCustomerChange={(value) => setProjectCustomerId(value || null)}
             onSaveProject={handleSaveProject}
+            onSaveDraft={handleSaveProjectDraft}
             onEditProject={startEdit}
             onDeleteProject={deleteProject}
             onCancelEdit={() => {
               setEditingId(null)
-              setProjectName('')
-              setProjectIcon('PRJ')
-              setProjectDesc('')
+              resetProjectForm()
             }}
           />
         ) : null
       case 'project-detail':
-        return selectedProject ? <ProjectDetail project={selectedProject} onBack={() => setCurrentView('dashboard')} /> : null
+        return selectedProject ? <ProjectDetail project={selectedProject} onBack={() => setCurrentView('dashboard')} role={role} tasks={tasks} /> : null
       case 'stock':
         return hasPermission(role, 'viewStock') ? <Stock stock={stock} onCreate={handleAddStockItem} onUpdate={handleUpdateStockItem} onDelete={handleDeleteStockItem} /> : null
       case 'customers':
-        return hasPermission(role, 'viewCustomers') ? <Customers customers={customers} onCreate={handleAddCustomer} onUpdate={handleUpdateCustomer} onDelete={handleDeleteCustomer} /> : null
+        return hasPermission(role, 'viewCustomers') ? (
+          <Customers
+            customers={customers}
+            quotes={quotes}
+            invoices={invoices}
+            onCreate={handleAddCustomer}
+            onUpdate={handleUpdateCustomer}
+            onDelete={handleDeleteCustomer}
+          />
+        ) : null
       case 'network':
         return hasPermission(role, 'viewNetwork') ? <Network partners={partners} onCreate={handleAddPartner} onUpdate={handleUpdatePartner} onDelete={handleDeletePartner} /> : null
       case 'strategy':
         return <Strategy strategies={strategies} onCreate={handleAddStrategy} onUpdate={handleUpdateStrategy} onDelete={handleDeleteStrategy} />
+      case 'executive-control-center':
+        return hasPermission(role, 'accessExecutiveControlCenter') ? (
+          <ExecutiveControlCenter
+            projects={projects}
+            jobs={jobs}
+            expenses={expenses}
+            payrollRecords={payrollRecords}
+            ownerDraws={ownerDraws}
+            financialSettings={financialSettings}
+            auditLogs={auditLogs}
+            allUsers={allUsers}
+            currentUser={currentUser}
+          />
+        ) : null
       case 'admin':
         return hasPermission(role, 'accessAdminPortal') ? <AdminPortal allUsers={allUsers} currentUser={currentUser} onUpdateUserRole={updateUserRole} /> : null
       default:
@@ -592,8 +742,42 @@ export default function App() {
       <Header
         currentUser={currentUser}
         isMenuOpen={isMenuOpen}
+        searchQuery={searchQuery}
+        searchResults={searchResults}
+        notifications={notifications}
+        onSearchQueryChange={async (value: string) => {
+          setSearchQuery(value)
+          if (!value.trim()) {
+            setSearchResults([])
+            return
+          }
+          const result = await searchRecords(value)
+          setSearchResults(result)
+        }}
+        onClearSearch={() => {
+          setSearchQuery('')
+          setSearchResults([])
+        }}
         onToggleMenu={() => setIsMenuOpen((previousValue) => !previousValue)}
         onNavigate={navigateTo}
+        onNavigateSearchResult={(result) => {
+          setSearchQuery('')
+          setSearchResults([])
+          if (result.route === 'customers') {
+            const customer = customers.find((entry) => entry.id === result.id)
+            if (customer) {
+              setCurrentView('customers')
+              return
+            }
+          }
+          if (result.route === 'projects') {
+            const project = projects.find((entry) => entry.id === result.id)
+            if (project) {
+              setSelectedProject(project)
+              setCurrentView('project-detail')
+            }
+          }
+        }}
         onLogout={() => supabase.auth.signOut()}
       />
 
