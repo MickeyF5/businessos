@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   Activity,
+  ArrowRightLeft,
   ArrowUpRight,
   BriefcaseBusiness,
   Building2,
   CheckCircle2,
+  Download,
   Edit3,
   Eye,
   FileText,
@@ -12,6 +14,7 @@ import {
   Mail,
   Paperclip,
   Phone,
+  Printer,
   ReceiptText,
   TrendingUp,
   Wallet,
@@ -72,6 +75,129 @@ const formatDate = (value?: string | null) => {
   return Number.isNaN(date.getTime()) ? 'No date' : date.toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 const safeNumber = (value: number | string | null | undefined) => Number(value ?? 0)
+const escapePdfText = (value: string) => value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)')
+
+const createPremiumPdfBlob = async ({
+  title,
+  subtitle,
+  documentCode,
+  customerName,
+  companyName,
+  email,
+  phone,
+  projectName,
+  notes,
+  items,
+  totals,
+  footerText,
+  generatedAt,
+}: {
+  title: string
+  subtitle: string
+  documentCode: string
+  customerName: string
+  companyName: string
+  email: string
+  phone: string
+  projectName: string
+  notes: string
+  items: Array<{ description: string; quantity: string; unitPrice: string; total: string }>
+  totals: Array<{ label: string; value: string; strong?: boolean }>
+  footerText: string
+  generatedAt: string
+}) => {
+  const summaryLines = [
+    `Customer: ${customerName}`,
+    `Company: ${companyName || 'N/A'}`,
+    `Email: ${email || 'N/A'}`,
+    `Phone: ${phone || 'N/A'}`,
+    `Project: ${projectName || 'N/A'}`,
+  ]
+
+  const contentLines = [
+    'q',
+    '1 0.68 0.22 rg',
+    '0 0 595 8 re f',
+    'Q',
+    'q',
+    '0 0 0 rg',
+    '0 0 595 92 re f',
+    'Q',
+    'BT /F1 24 Tf 50 792 Td (VZM) Tj ET',
+    'BT /F1 9 Tf 50 778 Td (Enterprise Operating System) Tj ET',
+    `BT /F1 18 Tf 360 792 Td (${escapePdfText(title)}) Tj ET`,
+    `BT /F1 10 Tf 360 776 Td (${escapePdfText(subtitle)}) Tj ET`,
+    `BT /F1 9 Tf 360 760 Td (${escapePdfText(documentCode)}) Tj ET`,
+    'BT /F1 12 Tf 50 702 Td (Client Details) Tj ET',
+    ...summaryLines.flatMap((line, index) => [`BT /F1 9 Tf 50 ${674 - index * 18} Td (${escapePdfText(line)}) Tj ET`]),
+    'BT /F1 12 Tf 310 702 Td (Project Details) Tj ET',
+    `BT /F1 9 Tf 310 684 Td (${escapePdfText(projectName || 'N/A')}) Tj ET`,
+    'BT /F1 9 Tf 50 620 Td (Description) Tj ET',
+    'BT /F1 9 Tf 315 620 Td (Qty) Tj ET',
+    'BT /F1 9 Tf 385 620 Td (Unit Price) Tj ET',
+    'BT /F1 9 Tf 470 620 Td (Total) Tj ET',
+    ...items.flatMap((item, index) => {
+      const y = 600 - index * 22
+      return [
+        `BT /F1 9 Tf 50 ${y} Td (${escapePdfText(item.description.length > 32 ? `${item.description.slice(0, 32)}…` : item.description)}) Tj ET`,
+        `BT /F1 9 Tf 320 ${y} Td (${escapePdfText(item.quantity)}) Tj ET`,
+        `BT /F1 9 Tf 390 ${y} Td (${escapePdfText(item.unitPrice)}) Tj ET`,
+        `BT /F1 9 Tf 470 ${y} Td (${escapePdfText(item.total)}) Tj ET`,
+      ]
+    }),
+    ...totals.flatMap((total, index) => {
+      const y = 210 - index * 22
+      return [
+        `BT /F1 9 Tf 360 ${y} Td (${escapePdfText(total.label)}) Tj ET`,
+        `BT /F1 ${total.strong ? '12' : '9'} Tf 470 ${y} Td (${escapePdfText(total.value)}) Tj ET`,
+      ]
+    }),
+    'BT /F1 10 Tf 50 168 Td (Notes) Tj ET',
+    `BT /F1 9 Tf 50 152 Td (${escapePdfText(notes || 'No additional notes provided.')}) Tj ET`,
+    `BT /F1 8 Tf 50 38 Td (${escapePdfText(footerText)}) Tj ET`,
+    `BT /F1 8 Tf 420 38 Td (${escapePdfText(`Generated: ${generatedAt}`)}) Tj ET`,
+  ]
+
+  const contentStream = contentLines.join('\n')
+  let pdf = '%PDF-1.4\n'
+  const offsets: number[] = [0]
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    `<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream`,
+  ]
+
+  objects.forEach((body, index) => {
+    offsets.push(pdf.length)
+    pdf += `${index + 1} 0 obj\n${body}\nendobj\n`
+  })
+
+  const xrefStart = pdf.length
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`
+  })
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`
+
+  return new Blob([new TextEncoder().encode(pdf)], { type: 'application/pdf' })
+}
+
+const downloadPdfBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.style.display = 'none'
+  document.body.appendChild(anchor)
+  anchor.click()
+  requestAnimationFrame(() => {
+    setTimeout(() => URL.revokeObjectURL(url), 1500)
+  })
+  setTimeout(() => anchor.remove(), 2000)
+}
+
 const actionButtonStyle: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -112,6 +238,10 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
   const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(false)
   const [localQuotes, setLocalQuotes] = useState<Quote[]>(quotes)
   const [localInvoices, setLocalInvoices] = useState<Invoice[]>(invoices)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [detailModal, setDetailModal] = useState<null | { type: 'quote' | 'invoice' | 'payment' | 'job'; payload: Quote | Invoice | { invoiceNumber: string; amount: string; status: string; method: string; date: string } | FinancialJobRow }>(null)
+  const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null)
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null)
   const [activeWorkflow, setActiveWorkflow] = useState<null | 'job' | 'quote' | 'invoice' | 'payment' | 'upload'>(null)
   const [jobForm, setJobForm] = useState({
     name: '',
@@ -163,6 +293,13 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
   useEffect(() => {
     setLocalInvoices(invoices)
   }, [invoices])
+
+  useEffect(() => {
+    if (!toastMessage) return
+
+    const timeoutId = window.setTimeout(() => setToastMessage(null), 2600)
+    return () => window.clearTimeout(timeoutId)
+  }, [toastMessage])
 
   useEffect(() => {
     if (!selectedCustomer) {
@@ -389,24 +526,64 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
     }
   }
 
-  const handleRecordPayment = async (invoice: Invoice) => {
-    if (!selectedCustomer) return
+  const handleQuotePdf = async (quote: Quote) => {
+    const quoteNumber = quote.number ?? 'Q0001'
+    const blob = await createPremiumPdfBlob({
+      title: 'QUOTE',
+      subtitle: `Issue date ${formatDate(quote.issue_date)} • Expiry ${formatDate(quote.expiry_date)}`,
+      documentCode: `Quote Number: ${quoteNumber}`,
+      customerName: quote.customer_name ?? selectedCustomer?.name ?? 'N/A',
+      companyName: selectedCustomer?.company ?? 'N/A',
+      email: selectedCustomer?.email ?? 'N/A',
+      phone: selectedCustomer?.phone ?? 'N/A',
+      projectName: quote.project_name ?? 'N/A',
+      notes: 'Payment requirements and service terms are governed by the VZM proposal and signed agreement.',
+      items: [
+        { description: 'Business strategy and project delivery', quantity: '1', unitPrice: formatCurrency(quote.total), total: formatCurrency(quote.total) },
+      ],
+      totals: [
+        { label: 'Subtotal', value: formatCurrency(quote.total) },
+        { label: 'VAT', value: formatCurrency(quote.total * 0.15) },
+        { label: 'Grand Total', value: formatCurrency(quote.total * 1.15), strong: true },
+      ],
+      footerText: 'Generated by VZM Enterprise Operating System',
+      generatedAt: new Date().toLocaleString('en-ZA'),
+    })
 
-    try {
-      const { error } = await supabase
-        .from('invoices')
-        .update({ status: 'Paid', updated_at: new Date().toISOString() })
-        .eq('id', invoice.id)
+    downloadPdfBlob(blob, `Quote-${quoteNumber}.pdf`)
+    setToastMessage('✅ Quote PDF Downloaded')
+    setCustomerActionStatus(`Quote ${quoteNumber} PDF generated and downloaded.`)
+  }
 
-      if (error) throw error
+  const handleInvoicePdf = async (invoice: Invoice) => {
+    const invoiceNumber = invoice.number ?? 'INV0001'
+    const blob = await createPremiumPdfBlob({
+      title: 'INVOICE',
+      subtitle: `Issue date ${formatDate(invoice.issued_at)} • Due ${formatDate(invoice.due_date)}`,
+      documentCode: `Invoice Number: ${invoiceNumber}`,
+      customerName: invoice.customer_name ?? selectedCustomer?.name ?? 'N/A',
+      companyName: selectedCustomer?.company ?? 'N/A',
+      email: selectedCustomer?.email ?? 'N/A',
+      phone: selectedCustomer?.phone ?? 'N/A',
+      projectName: invoice.project_name ?? 'N/A',
+      notes: 'Payment instructions and terms are included in the customer agreement and bank confirmation details.',
+      items: [
+        { description: 'Project service and invoiceable work', quantity: '1', unitPrice: formatCurrency(invoice.total), total: formatCurrency(invoice.total) },
+      ],
+      totals: [
+        { label: 'Subtotal', value: formatCurrency(invoice.total) },
+        { label: 'VAT', value: formatCurrency(invoice.total * 0.15) },
+        { label: 'Total', value: formatCurrency(invoice.total * 1.15) },
+        { label: 'Amount Paid', value: formatCurrency(invoice.status === 'Paid' ? invoice.total : 0) },
+        { label: 'Outstanding Balance', value: formatCurrency(Math.max(0, invoice.total * 1.15 - (invoice.status === 'Paid' ? invoice.total : 0))), strong: true },
+      ],
+      footerText: 'Generated by VZM Enterprise Operating System',
+      generatedAt: new Date().toLocaleString('en-ZA'),
+    })
 
-      setLocalInvoices((previous) => previous.map((entry) => (entry.id === invoice.id ? { ...entry, status: 'Paid', updated_at: new Date().toISOString() } : entry)))
-      setWorkspaceTab('payments')
-      setCustomerActionStatus(`Payment recorded for ${invoice.number ?? 'invoice'} and linked to receipt.`)
-    } catch (error) {
-      console.error('Failed to record payment:', error)
-      setCustomerActionStatus('Unable to record payment right now.')
-    }
+    downloadPdfBlob(blob, `Invoice-${invoiceNumber}.pdf`)
+    setToastMessage('✅ Invoice PDF Downloaded')
+    setCustomerActionStatus(`Invoice ${invoiceNumber} PDF generated and downloaded.`)
   }
 
   const handleRelationshipNavigation = (relationship: 'job' | 'quote' | 'invoice' | 'payment' | 'receipt') => {
@@ -526,13 +703,13 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
     const quoteNumber = quoteForm.number || `QUO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`
 
     const nextQuote: Quote = {
-      id: `quote-${Date.now()}`,
+      id: editingQuoteId ?? `quote-${Date.now()}`,
       customer_id: selectedCustomer.id,
       customer_name: selectedCustomer.name,
       project_id: null,
       project_name: null,
       number: quoteNumber,
-      status: 'Draft',
+      status: editingQuoteId ? (localQuotes.find((entry) => entry.id === editingQuoteId)?.status ?? 'Draft') : 'Draft',
       total,
       issue_date: new Date().toISOString(),
       expiry_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(),
@@ -540,10 +717,17 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
       updated_at: new Date().toISOString(),
     }
 
-    setLocalQuotes((previous) => [nextQuote, ...previous])
+    if (editingQuoteId) {
+      setLocalQuotes((previous) => previous.map((entry) => (entry.id === editingQuoteId ? { ...entry, ...nextQuote, customer_name: selectedCustomer.name, total, updated_at: new Date().toISOString() } : entry)))
+      setCustomerActionStatus(`Quote ${quoteNumber} updated for ${selectedCustomer.name}.`)
+    } else {
+      setLocalQuotes((previous) => [nextQuote, ...previous])
+      setCustomerActionStatus(`Quote ${quoteNumber} created for ${selectedCustomer.name}.`)
+    }
+
     setWorkspaceTab('quotes')
+    setEditingQuoteId(null)
     setActiveWorkflow(null)
-    setCustomerActionStatus(`Quote ${quoteNumber} created for ${selectedCustomer.name}.`)
   }
 
   const handleCreateInvoiceSubmit = async (event: FormEvent) => {
@@ -556,13 +740,13 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
     const invoiceNumber = invoiceForm.number || `INV-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`
 
     const nextInvoice: Invoice = {
-      id: `invoice-${Date.now()}`,
+      id: editingInvoiceId ?? `invoice-${Date.now()}`,
       customer_id: selectedCustomer.id,
       customer_name: selectedCustomer.name,
       project_id: null,
       project_name: null,
       number: invoiceNumber,
-      status: (invoiceForm.payment_status as Invoice['status']) || 'Draft',
+      status: (invoiceForm.payment_status as Invoice['status']) || (editingInvoiceId ? (localInvoices.find((entry) => entry.id === editingInvoiceId)?.status ?? 'Draft') : 'Draft'),
       total,
       due_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(),
       issued_at: new Date().toISOString(),
@@ -570,10 +754,17 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
       updated_at: new Date().toISOString(),
     }
 
-    setLocalInvoices((previous) => [nextInvoice, ...previous])
+    if (editingInvoiceId) {
+      setLocalInvoices((previous) => previous.map((entry) => (entry.id === editingInvoiceId ? { ...entry, ...nextInvoice, customer_name: selectedCustomer.name, total, updated_at: new Date().toISOString() } : entry)))
+      setCustomerActionStatus(`Invoice ${invoiceNumber} updated for ${selectedCustomer.name}.`)
+    } else {
+      setLocalInvoices((previous) => [nextInvoice, ...previous])
+      setCustomerActionStatus(`Invoice ${invoiceNumber} created for ${selectedCustomer.name}.`)
+    }
+
     setWorkspaceTab('invoices')
+    setEditingInvoiceId(null)
     setActiveWorkflow(null)
-    setCustomerActionStatus(`Invoice ${invoiceNumber} created for ${selectedCustomer.name}.`)
   }
 
   const handlePaymentSubmit = async (event: FormEvent) => {
@@ -583,6 +774,16 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
     const invoiceToUpdate = localInvoices.find((invoice) => invoice.id === paymentForm.invoice)
     if (invoiceToUpdate) {
       setLocalInvoices((previous) => previous.map((invoice) => (invoice.id === invoiceToUpdate.id ? { ...invoice, status: 'Paid', updated_at: new Date().toISOString() } : invoice)))
+      setDetailModal({
+        type: 'payment',
+        payload: {
+          invoiceNumber: invoiceToUpdate.number ?? 'Invoice',
+          amount: paymentForm.amount || String(invoiceToUpdate.total),
+          status: 'Paid',
+          method: paymentForm.method,
+          date: paymentForm.date,
+        },
+      })
     }
 
     setWorkspaceTab('payments')
@@ -972,12 +1173,23 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
                               <div style={{ color: '#9ca3af', marginTop: '4px' }}>{quote.status} • {formatCurrency(quote.total)}</div>
                             </div>
                             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                              <button type="button" onClick={() => setCustomerActionStatus(`Viewing ${quote.number ?? 'quote'} details.`)} style={actionButtonStyle}>View</button>
-                              <button type="button" onClick={() => setCustomerActionStatus(`Editing ${quote.number ?? 'quote'}.`)} style={actionButtonStyle}>Edit</button>
-                              <button type="button" onClick={() => setCustomerActionStatus(`Exporting ${quote.number ?? 'quote'} to PDF.`)} style={actionButtonStyle}>Export PDF</button>
-                              <button type="button" onClick={() => window.print()} style={actionButtonStyle}>Print</button>
-                              <button type="button" onClick={() => handleRelationshipNavigation('job')} style={actionButtonStyle}>Job</button>
-                              <button type="button" onClick={() => void handleConvertQuoteToInvoice(quote)} style={actionButtonPrimaryStyle}>Convert To Invoice</button>
+                              <button type="button" onClick={() => setDetailModal({ type: 'quote', payload: quote })} style={actionButtonStyle}><Eye size={14} /> View</button>
+                              <button type="button" onClick={() => {
+                                setEditingQuoteId(quote.id)
+                                setQuoteForm({
+                                  number: quote.number ?? '',
+                                  customer: quote.customer_name ?? selectedCustomer?.name ?? '',
+                                  items: quote.number ?? '',
+                                  labour: String(Number(quote.total || 0) * 0.7),
+                                  vat: String(Number(quote.total || 0) * 0.15),
+                                  notes: '',
+                                })
+                                setActiveWorkflow('quote')
+                              }} style={actionButtonStyle}><Edit3 size={14} /> Edit</button>
+                              <button type="button" onClick={() => void handleQuotePdf(quote)} style={actionButtonStyle}><FileText size={14} /> Export PDF</button>
+                              <button type="button" onClick={() => void handleQuotePdf(quote)} style={actionButtonStyle}><Download size={14} /> Download PDF</button>
+                              <button type="button" onClick={() => window.print()} style={actionButtonStyle}><Printer size={14} /> Print PDF</button>
+                              <button type="button" onClick={() => void handleConvertQuoteToInvoice(quote)} style={actionButtonPrimaryStyle}><ArrowRightLeft size={14} /> Convert To Invoice</button>
                             </div>
                           </div>
                         </div>
@@ -1006,13 +1218,35 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
                               <span style={{ background: tone.bg, color: tone.color, borderRadius: '999px', padding: '6px 10px', fontSize: '0.7rem', fontWeight: 700 }}>{invoice.status}</span>
                             </div>
                             <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
-                              <button type="button" onClick={() => setCustomerActionStatus(`Viewing ${invoice.number ?? 'invoice'}.`)} style={actionButtonStyle}>View</button>
-                              <button type="button" onClick={() => setCustomerActionStatus(`Editing ${invoice.number ?? 'invoice'}.`)} style={actionButtonStyle}>Edit</button>
-                              <button type="button" onClick={() => setCustomerActionStatus(`Exporting ${invoice.number ?? 'invoice'} to PDF.`)} style={actionButtonStyle}>Export PDF</button>
-                              <button type="button" onClick={() => window.print()} style={actionButtonStyle}>Print</button>
-                              <button type="button" onClick={() => void handleRecordPayment(invoice)} style={actionButtonStyle}>Record Payment</button>
-                              <button type="button" onClick={() => handleRelationshipNavigation('receipt')} style={actionButtonPrimaryStyle}>Receipt</button>
-                              <button type="button" onClick={() => handleRelationshipNavigation('payment')} style={actionButtonStyle}>Payment</button>
+                              <button type="button" onClick={() => setDetailModal({ type: 'invoice', payload: invoice })} style={actionButtonStyle}><Eye size={14} /> View</button>
+                              <button type="button" onClick={() => {
+                                setEditingInvoiceId(invoice.id)
+                                setInvoiceForm({
+                                  number: invoice.number ?? '',
+                                  customer: invoice.customer_name ?? selectedCustomer?.name ?? '',
+                                  items: invoice.number ?? '',
+                                  labour: String(Number(invoice.total || 0) * 0.7),
+                                  vat: String(Number(invoice.total || 0) * 0.15),
+                                  payment_status: invoice.status,
+                                  notes: '',
+                                })
+                                setActiveWorkflow('invoice')
+                              }} style={actionButtonStyle}><Edit3 size={14} /> Edit</button>
+                              <button type="button" onClick={() => void handleInvoicePdf(invoice)} style={actionButtonStyle}><FileText size={14} /> Export PDF</button>
+                              <button type="button" onClick={() => void handleInvoicePdf(invoice)} style={actionButtonStyle}><Download size={14} /> Download PDF</button>
+                              <button type="button" onClick={() => window.print()} style={actionButtonStyle}><Printer size={14} /> Print PDF</button>
+                              <button type="button" onClick={() => {
+                                setPaymentForm({
+                                  invoice: invoice.id,
+                                  amount: String(invoice.total),
+                                  method: 'Bank Transfer',
+                                  reference: '',
+                                  date: new Date().toISOString().slice(0, 10),
+                                })
+                                setActiveWorkflow('payment')
+                              }} style={actionButtonStyle}>Record Payment</button>
+                              <button type="button" onClick={() => setDetailModal({ type: 'payment', payload: { invoiceNumber: invoice.number ?? 'Invoice', amount: formatCurrency(invoice.total), status: invoice.status, method: 'Bank Transfer', date: invoice.updated_at ?? new Date().toISOString() } })} style={actionButtonPrimaryStyle}>Receipt</button>
+                              <button type="button" onClick={() => setWorkspaceTab('payments')} style={actionButtonStyle}>Payment</button>
                             </div>
                           </div>
                         )
@@ -1037,10 +1271,20 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
                               <div style={{ color: '#9ca3af', marginTop: '4px' }}>{payment.status} • {payment.amount}</div>
                             </div>
                             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                              <button type="button" onClick={() => setCustomerActionStatus(`Receipt for ${payment.invoiceNumber} opened.`)} style={actionButtonStyle}>View Receipt</button>
-                              <button type="button" onClick={() => setCustomerActionStatus(`Downloading receipt for ${payment.invoiceNumber}.`)} style={actionButtonStyle}>Download PDF</button>
+                              <button type="button" onClick={() => setDetailModal({ type: 'payment', payload: { invoiceNumber: payment.invoiceNumber, amount: payment.amount, status: payment.status, method: 'Bank Transfer', date: payment.date ?? new Date().toISOString() } })} style={actionButtonStyle}>View Receipt</button>
+                              <button type="button" onClick={() => {
+                                const invoiceMatch = localInvoices.find((invoice) => invoice.number === payment.invoiceNumber)
+                                if (invoiceMatch) {
+                                  setDetailModal({ type: 'invoice', payload: invoiceMatch })
+                                }
+                              }} style={actionButtonStyle}>Download PDF</button>
                               <button type="button" onClick={() => window.print()} style={actionButtonStyle}>Print</button>
-                              <button type="button" onClick={() => setCustomerActionStatus(`Viewing invoice ${payment.invoiceNumber}.`)} style={actionButtonStyle}>View Invoice</button>
+                              <button type="button" onClick={() => {
+                                const invoiceMatch = localInvoices.find((invoice) => invoice.number === payment.invoiceNumber)
+                                if (invoiceMatch) {
+                                  setDetailModal({ type: 'invoice', payload: invoiceMatch })
+                                }
+                              }} style={actionButtonStyle}>View Invoice</button>
                               <button type="button" onClick={() => handleRelationshipNavigation('invoice')} style={actionButtonStyle}>Invoice</button>
                             </div>
                           </div>
@@ -1372,6 +1616,97 @@ export function Customers({ customers, quotes = [], invoices = [], onCreate, onU
                 </form>
               )}
             </div>
+          </div>
+        )}
+
+        {detailModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.72)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '24px',
+              zIndex: 160,
+            }}
+            onClick={() => setDetailModal(null)}
+          >
+            <div
+              className="panel"
+              style={{
+                width: 'min(620px, 100%)',
+                padding: '22px',
+                boxShadow: '0 28px 80px rgba(0,0,0,0.45)',
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div className="eyebrow" style={{ color: '#d4af37' }}>
+                  {detailModal.type === 'quote' ? 'Quote Detail' : detailModal.type === 'invoice' ? 'Invoice Detail' : 'Payment Detail'}
+                </div>
+                <button type="button" onClick={() => setDetailModal(null)} style={actionButtonStyle}>Close</button>
+              </div>
+
+              {detailModal.type === 'quote' && detailModal.payload && 'issue_date' in detailModal.payload && 'expiry_date' in detailModal.payload && (
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800 }}>{detailModal.payload.number ?? 'Quote'}</div>
+                  <div style={{ color: '#d4af37', fontSize: '0.82rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{detailModal.payload.status}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+                    <div className="panel" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: '#9ca3af', fontSize: '0.7rem', textTransform: 'uppercase' }}>Customer</div><div style={{ marginTop: '6px', fontWeight: 700 }}>{detailModal.payload.customer_name ?? selectedCustomer?.name ?? 'N/A'}</div></div>
+                    <div className="panel" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: '#9ca3af', fontSize: '0.7rem', textTransform: 'uppercase' }}>Total</div><div style={{ marginTop: '6px', fontWeight: 700 }}>{formatCurrency(detailModal.payload.total)}</div></div>
+                    <div className="panel" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: '#9ca3af', fontSize: '0.7rem', textTransform: 'uppercase' }}>Issue Date</div><div style={{ marginTop: '6px', fontWeight: 700 }}>{formatDate(detailModal.payload.issue_date)}</div></div>
+                    <div className="panel" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: '#9ca3af', fontSize: '0.7rem', textTransform: 'uppercase' }}>Expiry Date</div><div style={{ marginTop: '6px', fontWeight: 700 }}>{formatDate(detailModal.payload.expiry_date)}</div></div>
+                  </div>
+                </div>
+              )}
+
+              {detailModal.type === 'invoice' && detailModal.payload && 'issued_at' in detailModal.payload && 'due_date' in detailModal.payload && (
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800 }}>{detailModal.payload.number ?? 'Invoice'}</div>
+                  <div style={{ color: '#d4af37', fontSize: '0.82rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{detailModal.payload.status}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+                    <div className="panel" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: '#9ca3af', fontSize: '0.7rem', textTransform: 'uppercase' }}>Customer</div><div style={{ marginTop: '6px', fontWeight: 700 }}>{detailModal.payload.customer_name ?? selectedCustomer?.name ?? 'N/A'}</div></div>
+                    <div className="panel" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: '#9ca3af', fontSize: '0.7rem', textTransform: 'uppercase' }}>Total</div><div style={{ marginTop: '6px', fontWeight: 700 }}>{formatCurrency(detailModal.payload.total)}</div></div>
+                    <div className="panel" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: '#9ca3af', fontSize: '0.7rem', textTransform: 'uppercase' }}>Issue Date</div><div style={{ marginTop: '6px', fontWeight: 700 }}>{formatDate(detailModal.payload.issued_at)}</div></div>
+                    <div className="panel" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: '#9ca3af', fontSize: '0.7rem', textTransform: 'uppercase' }}>Due Date</div><div style={{ marginTop: '6px', fontWeight: 700 }}>{formatDate(detailModal.payload.due_date)}</div></div>
+                  </div>
+                </div>
+              )}
+
+              {detailModal.type === 'payment' && (
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800 }}>{typeof detailModal.payload === 'object' && detailModal.payload && 'invoiceNumber' in detailModal.payload ? detailModal.payload.invoiceNumber : 'Payment record'}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+                    <div className="panel" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: '#9ca3af', fontSize: '0.7rem', textTransform: 'uppercase' }}>Amount</div><div style={{ marginTop: '6px', fontWeight: 700 }}>{typeof detailModal.payload === 'object' && detailModal.payload && 'amount' in detailModal.payload ? detailModal.payload.amount : 'N/A'}</div></div>
+                    <div className="panel" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: '#9ca3af', fontSize: '0.7rem', textTransform: 'uppercase' }}>Method</div><div style={{ marginTop: '6px', fontWeight: 700 }}>{typeof detailModal.payload === 'object' && detailModal.payload && 'method' in detailModal.payload ? detailModal.payload.method : 'N/A'}</div></div>
+                    <div className="panel" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: '#9ca3af', fontSize: '0.7rem', textTransform: 'uppercase' }}>Status</div><div style={{ marginTop: '6px', fontWeight: 700 }}>{typeof detailModal.payload === 'object' && detailModal.payload && 'status' in detailModal.payload ? detailModal.payload.status : 'N/A'}</div></div>
+                    <div className="panel" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: '#9ca3af', fontSize: '0.7rem', textTransform: 'uppercase' }}>Date</div><div style={{ marginTop: '6px', fontWeight: 700 }}>{typeof detailModal.payload === 'object' && detailModal.payload && 'date' in detailModal.payload ? formatDate(detailModal.payload.date) : 'N/A'}</div></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {toastMessage && (
+          <div
+            style={{
+              position: 'fixed',
+              right: '24px',
+              bottom: '24px',
+              zIndex: 200,
+              background: 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(17,17,17,0.95))',
+              border: '1px solid rgba(212,175,55,0.4)',
+              color: '#f3d67a',
+              borderRadius: '12px',
+              padding: '12px 16px',
+              fontWeight: 700,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.35)',
+            }}
+          >
+            {toastMessage}
           </div>
         )}
 
